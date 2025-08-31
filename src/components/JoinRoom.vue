@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { reactive, onMounted } from "vue";
+import { reactive, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { LiveKitService } from "../services/livekitService";
+import TimeComponent from "./Time.vue";
 
 const router = useRouter();
 
@@ -88,6 +89,22 @@ const goBack = () => {
   router.push("/");
 };
 
+// Вычисляем, нужно ли показывать плашку
+const isMaintenancePeriod = computed(() => {
+  // Получаем текущее время в часовом поясе Москвы
+  const moscowTime = new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Europe/Moscow",
+    hour: "2-digit",
+    hour12: false,
+  }).format(new Date());
+
+  // Извлекаем час из строки вида "14" или "05"
+  const hour = parseInt(moscowTime.split(":")[0], 10);
+
+  // Показываем плашку, если время от 00:00 до 07:59:59
+  return hour >= 0 && hour < 1;
+});
+
 onMounted(() => {
   checkServerStatus();
 });
@@ -97,6 +114,10 @@ onMounted(() => {
   <div
     class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4"
   >
+    <Transition name="fade">
+      <TimeComponent />
+    </Transition>
+
     <div class="max-w-md w-full">
       <!-- Кнопка назад -->
       <button
@@ -304,14 +325,6 @@ onMounted(() => {
           >
             Создать случайную комнату
           </button>
-        </div>
-
-        <!-- Дополнительная информация -->
-        <div class="mt-4 text-center">
-          <p class="text-xs text-gray-500">
-            Нажимая кнопку подключения, вы соглашаетесь на использование камеры
-            и микрофона
-          </p>
         </div>
       </form>
     </div>

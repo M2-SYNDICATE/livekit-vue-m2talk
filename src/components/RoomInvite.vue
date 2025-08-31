@@ -3,6 +3,7 @@ import { ref, reactive, onMounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { LiveKitService } from "../services/livekitService";
 import { isDevelopment } from "../config/livekit";
+import TimeComponent from "./Time.vue";
 
 interface Props {
   roomId: string;
@@ -158,6 +159,10 @@ onMounted(() => {
   <div
     class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4"
   >
+    <Transition name="fade">
+      <TimeComponent />
+    </Transition>
+
     <div class="max-w-md w-full">
       <!-- Кнопка домой -->
       <button

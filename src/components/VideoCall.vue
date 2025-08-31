@@ -1,3 +1,917 @@
+<template>
+  <div
+    class="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white"
+  >
+    <!-- Заголовок -->
+    <div
+      class="bg-gray-800/80 backdrop-blur-sm border-b border-gray-700/50 px-6 py-4"
+    >
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+          <div
+            class="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg"
+          >
+            <svg
+              class="w-6 h-6 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-xl font-bold">{{ props.roomName }}</h1>
+            <p class="text-sm text-gray-300">{{ props.participantName }}</p>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-4">
+          <!-- Качество соединения -->
+          <div
+            class="flex items-center space-x-2 text-sm text-gray-300 bg-gray-700/50 px-3 py-2 rounded-lg"
+          >
+            <div
+              class="w-2 h-2 rounded-full"
+              :class="{
+                'bg-green-400': state.connectionQuality === 'excellent',
+                'bg-yellow-400': state.connectionQuality === 'good',
+                'bg-orange-400': state.connectionQuality === 'poor',
+                'bg-red-400 animate-pulse': state.connectionQuality === 'lost',
+              }"
+            ></div>
+            <span v-if="state.isConnecting">Подключение...</span>
+            <span v-else-if="state.isConnected">
+              {{
+                state.connectionQuality === "excellent"
+                  ? "Отлично"
+                  : state.connectionQuality === "good"
+                  ? "Хорошо"
+                  : state.connectionQuality === "poor"
+                  ? "Плохо"
+                  : "Потеряно"
+              }}
+            </span>
+            <span v-else>Отключено</span>
+          </div>
+
+          <!-- Кнопка настроек устройств -->
+          <button
+            @click="showDeviceModal"
+            class="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+            title="Настройки устройств"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+          </button>
+
+          <!-- Кнопка приглашения -->
+          <button
+            @click="showInviteModal"
+            class="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              />
+            </svg>
+            <span>Пригласить</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ошибка -->
+    <div
+      v-if="state.error"
+      class="bg-red-600/90 backdrop-blur-sm text-white px-6 py-4 border-b border-red-500/50"
+    >
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <span>{{ state.error }}</span>
+        </div>
+        <button
+          @click="connectToRoom()"
+          class="ml-4 px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg text-sm font-medium transition-colors"
+        >
+          Повторить
+        </button>
+      </div>
+    </div>
+
+    <!-- Загрузка -->
+    <div
+      v-if="state.isConnecting"
+      class="flex-1 flex items-center justify-center min-h-[70vh]"
+    >
+      <div class="text-center">
+        <div
+          class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"
+        ></div>
+        <p class="text-xl font-semibold mb-2">Подключение...</p>
+        <p class="text-sm text-gray-400">
+          Попытка {{ state.connectionAttempts }} из {{ state.maxAttempts }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Видео-сетка -->
+    <div v-else-if="state.isConnected" class="flex-1 p-6 pb-32">
+      <div :class="gridClasses">
+        <!-- Локальное видео -->
+        <div
+          class="relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl overflow-hidden aspect-video shadow-xl transition-all duration-300"
+          :class="
+            localAudioLevel.speaking
+              ? 'ring-4 ring-green-400 ring-opacity-75'
+              : 'ring-2 ring-gray-600'
+          "
+        >
+          <!-- Видео -->
+          <video
+            ref="localVideoRef"
+            v-show="state.isCameraEnabled"
+            autoplay
+            muted
+            playsinline
+            class="w-full h-full object-cover"
+          ></video>
+
+          <!-- Аватар при отключенной камере -->
+          <div
+            v-if="!state.isCameraEnabled"
+            class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700"
+          >
+            <div class="text-white text-3xl font-bold">
+              {{ getInitials(props.participantName) }}
+            </div>
+          </div>
+
+          <!-- Индикаторы -->
+          <div class="absolute top-3 right-3 flex space-x-2">
+            <!-- Индикатор микрофона -->
+            <div class="relative">
+              <div
+                class="w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-colors"
+                :class="state.isMicEnabled ? 'bg-green-500' : 'bg-red-500'"
+              >
+                <svg
+                  class="w-4 h-4 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    v-if="state.isMicEnabled"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                  />
+                  <path
+                    v-else
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5.586 5.586l12.828 12.828M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                  />
+                </svg>
+              </div>
+              <!-- Индикатор уровня звука -->
+              <div
+                v-if="state.isMicEnabled && localAudioLevel.level > 0"
+                class="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse"
+                :style="{ opacity: localAudioLevel.level }"
+              ></div>
+            </div>
+
+            <!-- Индикатор камеры -->
+            <div
+              v-if="!state.isCameraEnabled"
+              class="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg"
+            >
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"
+                />
+              </svg>
+            </div>
+          </div>
+
+          <!-- Имя участника -->
+          <div
+            class="absolute bottom-3 left-3 bg-black/60 text-white px-3 py-1 rounded-lg text-sm font-medium backdrop-blur-sm"
+          >
+            Вы ({{ props.participantName }})
+          </div>
+
+          <!-- Индикато   качества -->
+          <div class="absolute top-3 left-3">
+            <div
+              class="flex items-center space-x-1 bg-black/60 px-2 py-1 rounded-lg backdrop-blur-sm"
+            >
+              <div
+                class="w-2 h-2 rounded-full"
+                :class="{
+                  'bg-green-400': state.connectionQuality === 'excellent',
+                  'bg-yellow-400': state.connectionQuality === 'good',
+                  'bg-orange-400': state.connectionQuality === 'poor',
+                  'bg-red-400': state.connectionQuality === 'lost',
+                }"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Удалённые участники -->
+        <template v-for="participant in participants" :key="participant.sid">
+          <div
+            :id="`participant-${participant.sid}`"
+            class="relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl overflow-hidden aspect-video shadow-xl transition-all duration-300"
+            :class="
+              getAudioLevel(participant.sid).speaking
+                ? 'ring-4 ring-green-400 ring-opacity-75'
+                : 'ring-2 ring-gray-600'
+            "
+          >
+            <!-- Видео -->
+            <video
+              v-show="hasVideoTrack(participant)"
+              data-track="video"
+              autoplay
+              playsinline
+              class="w-full h-full object-cover"
+            ></video>
+
+            <!-- Скрытый аудио элемент -->
+            <audio autoplay></audio>
+
+            <!-- Аватар при отключенном видео -->
+            <div
+              v-if="!hasVideoTrack(participant)"
+              class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700"
+            >
+              <div class="text-white text-2xl font-bold">
+                {{ getInitials(participant.name || participant.identity) }}
+              </div>
+            </div>
+
+            <!-- Индикаторы -->
+            <div class="absolute top-3 right-3 flex space-x-2">
+              <!-- Индикатор микрофона -->
+              <div class="relative">
+                <div
+                  class="w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-colors"
+                  :class="
+                    hasAudioTrack(participant) ? 'bg-green-500' : 'bg-red-500'
+                  "
+                >
+                  <svg
+                    class="w-4 h-4 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      v-if="hasAudioTrack(participant)"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                    />
+                    <path
+                      v-else
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M5.586 5.586l12.828 12.828M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                    />
+                  </svg>
+                </div>
+                <!-- Индикатор уровня звука -->
+                <div
+                  v-if="
+                    hasAudioTrack(participant) &&
+                    getAudioLevel(participant.sid).level > 0
+                  "
+                  class="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse"
+                  :style="{ opacity: getAudioLevel(participant.sid).level }"
+                ></div>
+              </div>
+
+              <!-- Индикатор камеры -->
+              <div
+                v-if="!hasVideoTrack(participant)"
+                class="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg"
+              >
+                <svg
+                  class="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <!-- Имя участника -->
+            <div
+              class="absolute bottom-3 left-3 bg-black/60 text-white px-3 py-1 rounded-lg text-sm font-medium backdrop-blur-sm"
+            >
+              {{ participant.name || participant.identity }}
+            </div>
+          </div>
+        </template>
+
+        <!-- Нет участников -->
+        <div
+          v-if="participants.length === 0"
+          class="relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl overflow-hidden aspect-video flex items-center justify-center shadow-xl border-2 border-dashed border-gray-600"
+        >
+          <div class="text-center">
+            <div
+              class="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4"
+            >
+              <svg
+                class="w-8 h-8 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                />
+              </svg>
+            </div>
+            <p class="text-lg font-semibold text-gray-300 mb-2">
+              Ожидание участников...
+            </p>
+            <p class="text-sm text-gray-500 mb-4">
+              Поделитесь ссылкой для присоединения к комнате
+            </p>
+            <button
+              @click="showInviteModal"
+              class="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg"
+            >
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                />
+              </svg>
+              <span>Пригласить участников</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Панель управления -->
+    <div
+      class="fixed bottom-0 left-0 right-0 bg-gray-800/95 backdrop-blur-sm border-t border-gray-700/50 px-6 py-6"
+    >
+      <div class="flex items-center justify-center space-x-6">
+        <!-- Микрофон -->
+        <div class="relative">
+          <button
+            @click="toggleMicrophone"
+            class="group p-4 rounded-full transition-all duration-200 transform hover:scale-105"
+            :class="
+              state.isMicEnabled
+                ? 'bg-gray-700 hover:bg-gray-600'
+                : 'bg-red-600 hover:bg-red-700'
+            "
+          >
+            <svg
+              class="w-6 h-6 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                v-if="state.isMicEnabled"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+              />
+              <path
+                v-else
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5.586 5.586l12.828 12.828M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+              />
+            </svg>
+          </button>
+          <!-- Индикатор уровня звука -->
+          <div
+            v-if="state.isMicEnabled && localAudioLevel.level > 0"
+            class="absolute -top-2 -right-2 w-4 h-4 bg-green-400 rounded-full animate-pulse"
+            :style="{ opacity: localAudioLevel.level }"
+          ></div>
+        </div>
+
+        <!-- Камера -->
+        <button
+          @click="toggleCamera"
+          class="group p-4 rounded-full transition-all duration-200 transform hover:scale-105"
+          :class="
+            state.isCameraEnabled
+              ? 'bg-gray-700 hover:bg-gray-600'
+              : 'bg-red-600 hover:bg-red-700'
+          "
+        >
+          <svg
+            class="w-6 h-6 text-white"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              v-if="state.isCameraEnabled"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+            />
+            <path
+              v-else
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"
+            />
+          </svg>
+        </button>
+
+        <!-- Настройки устройств -->
+        <button
+          @click="showDeviceModal"
+          class="group p-4 rounded-full bg-gray-700 hover:bg-gray-600 transition-all duration-200 transform hover:scale-105"
+          title="Настройки устройств"
+        >
+          <svg
+            class="w-6 h-6 text-white"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+            />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+          </svg>
+        </button>
+
+        <!-- Выход -->
+        <button
+          @click="leaveRoom"
+          class="p-4 rounded-full bg-red-600 hover:bg-red-700 text-white transition-all duration-200 transform hover:scale-105"
+          title="Покинуть комнату"
+        >
+          <svg
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+            />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Статистика -->
+      <div class="mt-4 text-center">
+        <p class="text-sm text-gray-400">
+          Участников: {{ participants.length + 1 }}
+          <span
+            v-if="state.speakingParticipants.size > 0 || state.isLocalSpeaking"
+            class="ml-2 text-green-400"
+          >
+            •
+            {{
+              state.speakingParticipants.size + (state.isLocalSpeaking ? 1 : 0)
+            }}
+            говорят
+          </span>
+        </p>
+      </div>
+    </div>
+
+    <!-- Модальное окно приглашения -->
+    <div
+      v-if="state.showInviteModal"
+      class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+      @click="closeInviteModal"
+    >
+      <div
+        class="bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl"
+        @click.stop
+      >
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-white">
+            Пригласить участников
+          </h3>
+          <button
+            @click="closeInviteModal"
+            class="text-gray-400 hover:text-white transition-colors"
+          >
+            <svg
+              class="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <p class="text-gray-300 mb-4">
+          Поделитесь этой ссылкой с участниками для присоединения к комнате:
+        </p>
+
+        <div class="flex items-center space-x-2 mb-4">
+          <input
+            :value="state.inviteLink"
+            readonly
+            class="flex-1 bg-gray-700 text-white px-3 py-2 rounded-lg text-sm border border-gray-600 focus:border-blue-500 focus:outline-none"
+          />
+          <button
+            @click="copyInviteLink"
+            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+            :class="{ 'bg-green-600 hover:bg-green-700': state.linkCopied }"
+          >
+            {{ state.linkCopied ? "Скопировано!" : "Копировать" }}
+          </button>
+        </div>
+
+        <div class="text-xs text-gray-400">
+          Участники смогут присоединиться к комнате "{{ props.roomName }}" по
+          этой ссылке
+        </div>
+      </div>
+    </div>
+
+    <!-- Модальное окно настроек устройств -->
+    <div
+      v-if="state.showDeviceModal"
+      class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+      @click="closeDeviceModal"
+    >
+      <div
+        class="bg-gray-800 rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl max-h-[80vh] overflow-y-auto"
+        @click.stop
+      >
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-lg font-semibold text-white">Настройки устройств</h3>
+          <button
+            @click="closeDeviceModal"
+            class="text-gray-400 hover:text-white transition-colors"
+          >
+            <svg
+              class="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Камеры -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-300 mb-2">
+            <svg
+              class="w-4 h-4 inline mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
+            Камера
+          </label>
+          <select
+            v-model="deviceState.selectedCamera"
+            @change="switchCamera(deviceState.selectedCamera)"
+            class="w-full bg-gray-700 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+          >
+            <option
+              v-for="camera in deviceState.cameras"
+              :key="camera.deviceId"
+              :value="camera.deviceId"
+            >
+              {{ camera.label }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Микрофоны -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-300 mb-2">
+            <svg
+              class="w-4 h-4 inline mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+              />
+            </svg>
+            Микрофон
+          </label>
+          <select
+            v-model="deviceState.selectedMicrophone"
+            @change="switchMicrophone(deviceState.selectedMicrophone)"
+            class="w-full bg-gray-700 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+          >
+            <option
+              v-for="mic in deviceState.microphones"
+              :key="mic.deviceId"
+              :value="mic.deviceId"
+            >
+              {{ mic.label }}
+            </option>
+          </select>
+
+          <!-- Тест микрофона -->
+          <div class="mt-3 p-3 bg-gray-700/50 rounded-lg">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm text-gray-300">Уровень звука</span>
+              <span class="text-xs text-gray-400"
+                >{{ Math.round(localAudioLevel.level * 100) }}%</span
+              >
+            </div>
+            <div class="w-full bg-gray-600 rounded-full h-2">
+              <div
+                class="bg-green-400 h-2 rounded-full transition-all duration-100"
+                :style="{ width: `${localAudioLevel.level * 100}%` }"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Динамики -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-300 mb-2">
+            <svg
+              class="w-4 h-4 inline mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M9 12a1 1 0 01-1-1V8a1 1 0 011-1h1m0 0V6a2 2 0 012-2h2a2 2 0 012 2v1m0 0V6a2 2 0 012-2h2a2 2 0 012 2v1"
+              />
+            </svg>
+            Динамики
+          </label>
+          <select
+            v-model="deviceState.selectedSpeaker"
+            @change="switchSpeaker(deviceState.selectedSpeaker)"
+            class="w-full bg-gray-700 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+          >
+            <option
+              v-for="speaker in deviceState.speakers"
+              :key="speaker.deviceId"
+              :value="speaker.deviceId"
+            >
+              {{ speaker.label }}
+            </option>
+          </select>
+
+          <!-- Тест динамиков -->
+          <button
+            @click="testSpeakers"
+            class="mt-3 w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+            :disabled="deviceState.testingAudio"
+          >
+            {{ deviceState.testingAudio ? "Тестирование..." : "Тест звука" }}
+          </button>
+        </div>
+
+        <!-- Настройки качества -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-300 mb-2">
+            <svg
+              class="w-4 h-4 inline mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+              />
+            </svg>
+            Качество видео
+          </label>
+          <select
+            v-model="deviceState.videoQuality"
+            @change="changeVideoQuality(deviceState.videoQuality)"
+            class="w-full bg-gray-700 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+          >
+            <option value="low">Низкое (480p)</option>
+            <option value="medium">Среднее (720p)</option>
+            <option value="high">Высокое (1080p)</option>
+          </select>
+        </div>
+
+        <!-- Дополнительные настройки -->
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <label class="text-sm font-medium text-gray-300"
+              >Подавление шума</label
+            >
+            <button
+              @click="
+                deviceState.noiseSuppression = !deviceState.noiseSuppression;
+                updateAudioSettings();
+              "
+              class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+              :class="
+                deviceState.noiseSuppression ? 'bg-blue-600' : 'bg-gray-600'
+              "
+            >
+              <span
+                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                :class="
+                  deviceState.noiseSuppression
+                    ? 'translate-x-6'
+                    : 'translate-x-1'
+                "
+              ></span>
+            </button>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <label class="text-sm font-medium text-gray-300"
+              >Подавление эха</label
+            >
+            <button
+              @click="
+                deviceState.echoCancellation = !deviceState.echoCancellation;
+                updateAudioSettings();
+              "
+              class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+              :class="
+                deviceState.echoCancellation ? 'bg-blue-600' : 'bg-gray-600'
+              "
+            >
+              <span
+                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                :class="
+                  deviceState.echoCancellation
+                    ? 'translate-x-6'
+                    : 'translate-x-1'
+                "
+              ></span>
+            </button>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <label class="text-sm font-medium text-gray-300"
+              >Автоматическая регулировка громкости</label
+            >
+            <button
+              @click="
+                deviceState.autoGainControl = !deviceState.autoGainControl;
+                updateAudioSettings();
+              "
+              class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+              :class="
+                deviceState.autoGainControl ? 'bg-blue-600' : 'bg-gray-600'
+              "
+            >
+              <span
+                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                :class="
+                  deviceState.autoGainControl
+                    ? 'translate-x-6'
+                    : 'translate-x-1'
+                "
+              ></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted, computed, nextTick } from "vue";
 import { useRouter } from "vue-router";
@@ -11,6 +925,10 @@ import {
   ConnectionError,
   createLocalVideoTrack,
   createLocalAudioTrack,
+  ConnectionQuality,
+  LocalTrack,
+  LocalVideoTrack,
+  LocalAudioTrack,
 } from "livekit-client";
 import { LIVEKIT_CONFIG } from "../config/livekit";
 
@@ -26,7 +944,7 @@ const router = useRouter();
 const room = ref<Room | undefined>(undefined);
 const localVideoRef = ref<HTMLVideoElement | null>(null);
 
-// Общий reactive state (без participants)
+// Основное состояние
 const state = reactive({
   isConnected: false,
   isConnecting: true,
@@ -38,12 +956,65 @@ const state = reactive({
   speakingParticipants: new Set<string>(),
   isLocalSpeaking: false,
   showInviteModal: false,
+  showDeviceModal: false,
   inviteLink: "" as string,
   linkCopied: false,
+  connectionQuality: "good" as "excellent" | "good" | "poor" | "lost",
 });
 
-// ✅ participants — отдельный ref с правильным типом
-const participants = ref<RemoteParticipant[]>([]);
+// Состояние устройств
+const deviceState = reactive({
+  cameras: [] as MediaDeviceInfo[],
+  microphones: [] as MediaDeviceInfo[],
+  speakers: [] as MediaDeviceInfo[],
+  selectedCamera: "",
+  selectedMicrophone: "",
+  selectedSpeaker: "",
+  videoQuality: "medium" as "low" | "medium" | "high",
+  noiseSuppression: true,
+  echoCancellation: true,
+  autoGainControl: true,
+  testingAudio: false,
+});
+
+// Аудио уровни
+const localAudioLevel = ref({ level: 0, speaking: false });
+const participantAudioLevels = ref<
+  Map<string, { level: number; speaking: boolean }>
+>(new Map());
+
+// Участники
+// Определяем минимальный тип, достаточный для наших функций
+interface MinimalParticipant {
+  sid: string;
+  identity: string;
+  name?: string;
+  videoTrackPublications: Map<
+    string,
+    { track?: { kind: string }; isMuted: boolean }
+  >;
+  audioTrackPublications: Map<
+    string,
+    { track?: { kind: string }; isMuted: boolean }
+  >;
+  // Добавьте другие поля, если они используются в других частях кода, например, в шаблоне
+  // Например: metadata?: string;
+}
+
+const participants = ref<MinimalParticipant[]>([]);
+// Локальные треки
+let localVideoTrack: LocalVideoTrack | undefined;
+let localAudioTrack: LocalAudioTrack | undefined;
+
+// Получение аудио уровня участника
+const getAudioLevel = (participantSid: string) => {
+  return (
+    participantAudioLevels.value.get(participantSid) || {
+      level: 0,
+      speaking: false,
+    }
+  );
+};
 
 // Генерация ссылки приглашения
 const generateInviteLink = () => {
@@ -64,6 +1035,7 @@ const copyInviteLink = async () => {
   }
 };
 
+// Модальные окна
 const showInviteModal = () => {
   generateInviteLink();
   state.showInviteModal = true;
@@ -74,9 +1046,193 @@ const closeInviteModal = () => {
   state.linkCopied = false;
 };
 
-// Динамическая сетка — в script используем participants.value
+const showDeviceModal = async () => {
+  await loadDevices();
+  state.showDeviceModal = true;
+};
+
+const closeDeviceModal = () => {
+  state.showDeviceModal = false;
+};
+
+// Загрузка устройств
+const loadDevices = async () => {
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+
+    deviceState.cameras = devices.filter((d) => d.kind === "videoinput");
+    deviceState.microphones = devices.filter((d) => d.kind === "audioinput");
+    deviceState.speakers = devices.filter((d) => d.kind === "audiooutput");
+
+    // Установка текущих устройств
+    if (localVideoTrack) {
+      const videoSettings = localVideoTrack.mediaStreamTrack?.getSettings();
+      if (videoSettings?.deviceId) {
+        deviceState.selectedCamera = videoSettings.deviceId;
+      }
+    }
+
+    if (localAudioTrack) {
+      const audioSettings = localAudioTrack.mediaStreamTrack?.getSettings();
+      if (audioSettings?.deviceId) {
+        deviceState.selectedMicrophone = audioSettings.deviceId;
+      }
+    }
+  } catch (error) {
+    console.error("Ошибка загрузки устройств:", error);
+  }
+};
+
+// Переключение камеры
+const switchCamera = async (deviceId: string) => {
+  if (!room.value) return;
+
+  try {
+    // Остановка старого трека
+    if (localVideoTrack) {
+      localVideoTrack.stop();
+    }
+
+    // Создание нового трека
+    localVideoTrack = await createLocalVideoTrack({
+      deviceId,
+      ...getVideoResolution(),
+    });
+
+    // Публикация нового трека
+    await room.value.localParticipant.publishTrack(localVideoTrack, {
+      name: "camera",
+    });
+
+    // Прикрепление к видео элементу
+    if (localVideoRef.value) {
+      localVideoTrack.attach(localVideoRef.value);
+    }
+
+    deviceState.selectedCamera = deviceId;
+    console.log("✅ Камера переключена на:", deviceId);
+  } catch (error) {
+    console.error("❌ Ошибка переключения камеры:", error);
+    state.error = "Не удалось переключить камеру";
+  }
+};
+
+// Переключение микрофона
+const switchMicrophone = async (deviceId: string) => {
+  if (!room.value) return;
+
+  try {
+    // Остановка старого трека
+    if (localAudioTrack) {
+      localAudioTrack.stop();
+    }
+
+    // Создание нового трека
+    localAudioTrack = await createLocalAudioTrack({
+      deviceId,
+      autoGainControl: deviceState.autoGainControl,
+      echoCancellation: deviceState.echoCancellation,
+      noiseSuppression: deviceState.noiseSuppression,
+    });
+
+    // Публикация нового трека
+    await room.value.localParticipant.publishTrack(localAudioTrack, {
+      name: "microphone",
+    });
+
+    deviceState.selectedMicrophone = deviceId;
+
+    // Перезапуск мониторинга аудио
+    startAudioLevelMonitoring();
+
+    console.log("✅ Микрофон переключен на:", deviceId);
+  } catch (error) {
+    console.error("❌ Ошибка переключения микрофона:", error);
+    state.error = "Не удалось переключить микрофон";
+  }
+};
+
+// Переключение динамиков
+const switchSpeaker = async (deviceId: string) => {
+  deviceState.selectedSpeaker = deviceId;
+
+  // Применяем к существующим аудио элементам
+  const audioElements = document.querySelectorAll("audio");
+  for (const audio of audioElements) {
+    try {
+      if ("setSinkId" in audio) {
+        await (audio as any).setSinkId(deviceId);
+      }
+    } catch (error) {
+      console.error("Ошибка переключения динамиков:", error);
+    }
+  }
+
+  console.log("✅ Динамики переключены на:", deviceId);
+};
+
+// Тест   инамиков
+const testSpeakers = async () => {
+  deviceState.testingAudio = true;
+
+  try {
+    // Создаем короткий тестовый звук
+    const audioContext = new AudioContext();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.5);
+
+    setTimeout(() => {
+      deviceState.testingAudio = false;
+      audioContext.close();
+    }, 600);
+  } catch (error) {
+    console.error("Ошибка тестирования звука:", error);
+    deviceState.testingAudio = false;
+  }
+};
+
+// Получение разрешения видео
+const getVideoResolution = () => {
+  switch (deviceState.videoQuality) {
+    case "low":
+      return { width: 640, height: 480, frameRate: 15 };
+    case "medium":
+      return { width: 1280, height: 720, frameRate: 30 };
+    case "high":
+      return { width: 1920, height: 1080, frameRate: 30 };
+    default:
+      return { width: 1280, height: 720, frameRate: 30 };
+  }
+};
+
+// Изменение качества видео
+const changeVideoQuality = async (quality: string) => {
+  deviceState.videoQuality = quality as "low" | "medium" | "high";
+
+  if (deviceState.selectedCamera && state.isCameraEnabled) {
+    await switchCamera(deviceState.selectedCamera);
+  }
+};
+
+// Обновление настроек аудио
+const updateAudioSettings = async () => {
+  if (deviceState.selectedMicrophone && state.isMicEnabled) {
+    await switchMicrophone(deviceState.selectedMicrophone);
+  }
+};
+
+// Динамическая сетка
 const gridClasses = computed(() => {
-  const totalParticipants = participants.value.length + 1; // +1 локальный
+  const totalParticipants = participants.value.length + 1;
   if (totalParticipants === 1)
     return "grid grid-cols-1 md:grid-cols-2 gap-6 h-full min-h-[60vh]";
   if (totalParticipants === 2)
@@ -88,9 +1244,52 @@ const gridClasses = computed(() => {
   return "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 h-full min-h-[60vh]";
 });
 
+// Мониторинг аудио уровней
+const startAudioLevelMonitoring = () => {
+  if (!localAudioTrack) return;
+
+  try {
+    // Создаем анализатор для локального аудио
+    const audioContext = new AudioContext();
+    const source = audioContext.createMediaStreamSource(
+      new MediaStream([localAudioTrack.mediaStreamTrack])
+    );
+    const analyser = audioContext.createAnalyser();
+
+    analyser.fftSize = 256;
+    source.connect(analyser);
+
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+    const updateLevel = () => {
+      if (!localAudioTrack || localAudioTrack.isMuted) {
+        localAudioLevel.value = { level: 0, speaking: false };
+        requestAnimationFrame(updateLevel);
+        return;
+      }
+
+      analyser.getByteFrequencyData(dataArray);
+      const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+      const level = Math.min(average / 128, 1);
+
+      localAudioLevel.value = {
+        level,
+        speaking: level > 0.1,
+      };
+
+      requestAnimationFrame(updateLevel);
+    };
+
+    updateLevel();
+  } catch (error) {
+    console.error("Ошибка мониторинга аудио:", error);
+  }
+};
+
 // Подключение к комнате
 const connectToRoom = async () => {
   state.connectionAttempts++;
+  state.error = "";
 
   if (room.value) {
     console.log("🚪 Отключаем предыдущее подключение...");
@@ -101,7 +1300,7 @@ const connectToRoom = async () => {
   try {
     room.value = new Room();
 
-    // Обработчики
+    // Обработчики событий
     room.value.on(RoomEvent.Connected, handleRoomConnected);
     room.value.on(RoomEvent.ParticipantConnected, handleParticipantConnected);
     room.value.on(
@@ -120,19 +1319,21 @@ const connectToRoom = async () => {
     room.value.on(RoomEvent.ActiveSpeakersChanged, handleActiveSpeakersChanged);
     room.value.on(RoomEvent.TrackMuted, handleTrackMuted);
     room.value.on(RoomEvent.TrackUnmuted, handleTrackUnmuted);
+    room.value.on(
+      RoomEvent.ConnectionQualityChanged,
+      handleConnectionQualityChanged
+    );
 
-    // Сначала connect()
+    // Подключение
     await room.value.connect(LIVEKIT_CONFIG.WS_URL, props.token);
     console.log("✅ Подключение установлено");
 
-    // Публикуем видео
+    // Публикация видео
     try {
-      const videoTrack = await createLocalVideoTrack({
-        resolution: { width: 1280, height: 720, frameRate: 30 },
-      });
-      await room.value.localParticipant.publishTrack(videoTrack);
+      localVideoTrack = await createLocalVideoTrack(getVideoResolution());
+      await room.value.localParticipant.publishTrack(localVideoTrack);
       if (localVideoRef.value) {
-        videoTrack.attach(localVideoRef.value);
+        localVideoTrack.attach(localVideoRef.value);
       }
       state.isCameraEnabled = true;
     } catch (err) {
@@ -140,15 +1341,18 @@ const connectToRoom = async () => {
       state.isCameraEnabled = false;
     }
 
-    // Публикуем аудио
+    // Публикация аудио
     try {
-      const audioTrack = await createLocalAudioTrack({
-        autoGainControl: true,
-        echoCancellation: true,
-        noiseSuppression: true,
+      localAudioTrack = await createLocalAudioTrack({
+        autoGainControl: deviceState.autoGainControl,
+        echoCancellation: deviceState.echoCancellation,
+        noiseSuppression: deviceState.noiseSuppression,
       });
-      await room.value.localParticipant.publishTrack(audioTrack);
+      await room.value.localParticipant.publishTrack(localAudioTrack);
       state.isMicEnabled = true;
+
+      // Запуск мониторинга аудио
+      startAudioLevelMonitoring();
     } catch (err) {
       console.warn("🎤 Не удалось включить микрофон:", err);
       state.isMicEnabled = false;
@@ -174,17 +1378,40 @@ const connectToRoom = async () => {
   }
 };
 
-// Обработчики
+// Обработчики событий
 const handleRoomConnected = () => {
   console.log("✅ Успешно подключились");
+  // Явно приводим тип
+  participants.value = Array.from(
+    room.value!.remoteParticipants.values()
+  ) as RemoteParticipant[];
   state.isConnected = true;
   state.isConnecting = false;
   state.error = "";
-  participants.value = Array.from(room.value!.remoteParticipants.values());
 };
-
 const handleConnectionStateChanged = (connectionState: any) => {
   console.log("🔄 Состояние подключения:", connectionState);
+};
+
+const handleConnectionQualityChanged = (
+  quality: ConnectionQuality,
+  participant: Participant
+) => {
+  if (participant.sid === room.value?.localParticipant.sid) {
+    switch (quality) {
+      case ConnectionQuality.Excellent:
+        state.connectionQuality = "excellent";
+        break;
+      case ConnectionQuality.Good:
+        state.connectionQuality = "good";
+        break;
+      case ConnectionQuality.Poor:
+        state.connectionQuality = "poor";
+        break;
+      default:
+        state.connectionQuality = "lost";
+    }
+  }
 };
 
 const handleReconnecting = () => {
@@ -199,7 +1426,9 @@ const handleReconnected = () => {
 
 const handleParticipantConnected = (participant: RemoteParticipant) => {
   console.log("👤 Подключился:", participant.identity);
-  participants.value.push(participant);
+  // participants.value.push(participant); // Этот код должен работать, если тип правильный
+  // Но если все еще ругается, можно привести:
+  participants.value.push(participant as RemoteParticipant);
 };
 
 const handleParticipantDisconnected = (participant: RemoteParticipant) => {
@@ -208,6 +1437,7 @@ const handleParticipantDisconnected = (participant: RemoteParticipant) => {
     (p) => p.sid !== participant.sid
   );
   state.speakingParticipants.delete(participant.sid);
+  participantAudioLevels.value.delete(participant.sid);
 };
 
 const handleTrackSubscribed = async (
@@ -222,36 +1452,55 @@ const handleTrackSubscribed = async (
     participant.identity
   );
 
-  await nextTick(); // дождаться DOM
+  await nextTick();
 
-  const videoEl = document.querySelector(
-    `#participant-${participant.sid} video[autoplay]`
-  ) as HTMLVideoElement | null;
+  const participantEl = document.querySelector(
+    `#participant-${participant.sid}`
+  );
+  if (!participantEl) return;
 
-  if (videoEl && !videoEl.srcObject) {
-    try {
-      // track.attach может принимать HTMLVideoElement
-      (track as any).attach?.(videoEl);
-      console.log("🎥 Прикрепили трек к видео:", videoEl);
-    } catch (e) {
-      console.warn("Ошибка при attach:", e);
+  if (track.kind === "video") {
+    const videoEl = participantEl.querySelector(
+      'video[data-track="video"]'
+    ) as HTMLVideoElement;
+    if (videoEl && !videoEl.srcObject) {
+      try {
+        track.attach(videoEl);
+        console.log("🎥 Прикрепили видео трек");
+      } catch (e) {
+        console.warn("Ошибка при attach видео:", e);
+      }
     }
-  } else {
-    console.warn("⚠️ Не найден video элемент или уже прикреплён");
+  } else if (track.kind === "audio") {
+    const audioEl = participantEl.querySelector("audio") as HTMLAudioElement;
+    if (audioEl) {
+      try {
+        track.attach(audioEl);
+
+        // Установка динамика
+        if (deviceState.selectedSpeaker && "setSinkId" in audioEl) {
+          await (audioEl as any).setSinkId(deviceState.selectedSpeaker);
+        }
+
+        console.log("🎵 Прикрепили аудио трек");
+      } catch (e) {
+        console.warn("Ошибка при attach аудио:", e);
+      }
+    }
   }
 };
 
 const handleTrackUnsubscribed = (track: RemoteTrack) => {
   console.log("📺 Отписка от трека:", track.kind);
   try {
-    (track as any).detach?.();
+    track.detach();
   } catch (e) {
     // ignore
   }
 };
 
 const handleRoomDisconnected = () => {
-  console.log("🚪 Отключились от комнаты");
+  console.log("   Отключились от комнаты");
   state.isConnected = false;
   router.push("/");
 };
@@ -265,6 +1514,30 @@ const handleActiveSpeakersChanged = (speakers: Participant[]) => {
       state.isLocalSpeaking = true;
     } else {
       state.speakingParticipants.add(sp.sid);
+
+      // Обновляем аудио уровень участника
+      const currentLevel = participantAudioLevels.value.get(sp.sid) || {
+        level: 0,
+        speaking: false,
+      };
+      participantAudioLevels.value.set(sp.sid, {
+        ...currentLevel,
+        speaking: true,
+      });
+    }
+  });
+
+  // Сбрасываем speaking для неговорящих участников
+  participants.value.forEach((p) => {
+    if (!state.speakingParticipants.has(p.sid)) {
+      const currentLevel = participantAudioLevels.value.get(p.sid) || {
+        level: 0,
+        speaking: false,
+      };
+      participantAudioLevels.value.set(p.sid, {
+        ...currentLevel,
+        speaking: false,
+      });
     }
   });
 };
@@ -280,7 +1553,7 @@ const handleTrackUnmuted = (
   console.log("🔊 Трек включен:", pub.kind, participant.identity);
 };
 
-// Вспомогательные
+// Вспомогательные функции
 const getInitials = (name: string) =>
   name
     .split(" ")
@@ -289,28 +1562,34 @@ const getInitials = (name: string) =>
     .toUpperCase()
     .slice(0, 2);
 
-const hasVideoTrack = (p: unknown): boolean => {
-  const participant = p as RemoteParticipant;
-  return Array.from(participant.videoTrackPublications.values()).some(
-    (pub: TrackPublication) => pub.track !== undefined && !pub.isMuted
+const hasVideoTrack = (p: MinimalParticipant): boolean => {
+  if (!p || !p.videoTrackPublications) {
+    console.warn("Invalid participant object passed to hasVideoTrack", p);
+    return false;
+  }
+  // Используем `any` для publication, если тип TrackPublication тоже вызывает проблемы,
+  // или определите его в MinimalParticipant, если нужно больше контроля.
+  return Array.from(p.videoTrackPublications.values()).some(
+    (pub: any) => pub.track !== undefined && !pub.isMuted
   );
 };
 
-const hasAudioTrack = (p: unknown): boolean => {
-  const participant = p as RemoteParticipant;
-  return Array.from(participant.audioTrackPublications.values()).some(
-    (pub: TrackPublication) => pub.track !== undefined && !pub.isMuted
+const hasAudioTrack = (p: MinimalParticipant): boolean => {
+  if (!p || !p.audioTrackPublications) {
+    console.warn("Invalid participant object passed to hasAudioTrack", p);
+    return false;
+  }
+  return Array.from(p.audioTrackPublications.values()).some(
+    (pub: any) => pub.track !== undefined && !pub.isMuted
   );
 };
-// Управление
+// Управление устройствами
 const toggleCamera = async () => {
   const local = room.value?.localParticipant;
   if (!local) return;
 
   const videoPubs = [...local.videoTrackPublications.values()];
-  const pub = videoPubs.find(
-    (p) => (p.track as any)?.mediaStreamTrack?.kind === "video"
-  );
+  const pub = videoPubs.find((p) => p.track?.kind === "video");
 
   if (!pub) return;
 
@@ -328,9 +1607,7 @@ const toggleMicrophone = async () => {
   if (!local) return;
 
   const audioPubs = [...local.audioTrackPublications.values()];
-  const pub = audioPubs.find(
-    (p) => (p.track as any)?.mediaStreamTrack?.kind === "audio"
-  );
+  const pub = audioPubs.find((p) => p.track?.kind === "audio");
 
   if (!pub) return;
 
@@ -346,336 +1623,86 @@ const toggleMicrophone = async () => {
 const leaveRoom = async () => {
   console.log("🚪 Выход из комнаты...");
   if (room.value) {
-    room.value.localParticipant.videoTrackPublications.forEach((p) =>
-      (p.track as any)?.stop?.()
-    );
-    room.value.localParticipant.audioTrackPublications.forEach((p) =>
-      (p.track as any)?.stop?.()
-    );
+    // Остановка локальных треков
+    if (localVideoTrack) {
+      localVideoTrack.stop();
+      localVideoTrack = undefined;
+    }
+    if (localAudioTrack) {
+      localAudioTrack.stop();
+      localAudioTrack = undefined;
+    }
+
     await room.value.disconnect();
   }
   router.push("/");
 };
 
-onMounted(() => connectToRoom());
+onMounted(() => {
+  connectToRoom();
+  // Запрос разрешений на устройства
+  navigator.mediaDevices
+    .getUserMedia({ video: true, audio: true })
+    .catch(console.warn);
+});
 
 onUnmounted(() => {
   if (room.value) {
-    room.value.localParticipant.videoTrackPublications.forEach((p) =>
-      (p.track as any)?.stop?.()
-    );
-    room.value.localParticipant.audioTrackPublications.forEach((p) =>
-      (p.track as any)?.stop?.()
-    );
+    // Остановка локальных треков
+    if (localVideoTrack) {
+      localVideoTrack.stop();
+    }
+    if (localAudioTrack) {
+      localAudioTrack.stop();
+    }
+
     room.value.disconnect();
   }
 });
 </script>
 
-<template>
-  <div
-    class="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white"
-  >
-    <!-- Заголовок -->
-    <div
-      class="bg-gray-800/80 backdrop-blur-sm border-b border-gray-700/50 px-6 py-4"
-    >
-      <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-4">
-          <div
-            class="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg"
-          >
-            <!-- icon -->
-          </div>
-          <div>
-            <h1 class="text-xl font-bold">{{ roomName }}</h1>
-            <p class="text-sm text-gray-300">{{ participantName }}</p>
-          </div>
-        </div>
-        <div class="flex items-center space-x-4">
-          <button
-            @click="showInviteModal"
-            class="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
-            <span>Пригласить</span>
-          </button>
-          <div
-            class="flex items-center space-x-2 text-sm text-gray-300 bg-gray-700/50 px-3 py-2 rounded-lg"
-          >
-            <div
-              class="w-2 h-2 rounded-full"
-              :class="{
-                'bg-yellow-400 animate-pulse': state.isConnecting,
-                'bg-green-400': state.isConnected,
-                'bg-red-400': !state.isConnected && !state.isConnecting,
-              }"
-            ></div>
-            <span v-if="state.isConnecting">Подключение...</span>
-            <span v-else-if="state.isConnected">Подключено</span>
-            <span v-else>Отключено</span>
-          </div>
-        </div>
-      </div>
-    </div>
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
 
-    <!-- Ошибка -->
-    <div
-      v-if="state.error"
-      class="bg-red-600/90 backdrop-blur-sm text-white px-6 py-4 border-b border-red-500/50"
-    >
-      <div class="flex items-center justify-between">
-        <div class="flex items-center">
-          {{ state.error }}
-        </div>
-        <button
-          @click="connectToRoom()"
-          class="ml-4 px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg text-sm font-medium"
-        >
-          Повторить
-        </button>
-      </div>
-    </div>
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
 
-    <!-- Загрузка -->
-    <div
-      v-if="state.isConnecting"
-      class="flex-1 flex items-center justify-center min-h-[70vh]"
-    >
-      <div class="text-center">
-        <p class="text-xl font-semibold mb-2">Подключение...</p>
-        <p class="text-sm text-gray-400">
-          Попытка {{ state.connectionAttempts }} из {{ state.maxAttempts }}
-        </p>
-      </div>
-    </div>
+/* Анимации для переходов */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
 
-    <!-- Видео-сетка -->
-    <div v-else-if="state.isConnected" class="flex-1 p-6 pb-32">
-      <div :class="gridClasses">
-        <!-- Локальное видео -->
-        <div
-          class="relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl overflow-hidden aspect-video shadow-xl"
-          :class="
-            state.isLocalSpeaking
-              ? 'ring-4 ring-green-400 ring-opacity-75'
-              : 'ring-2 ring-gray-600'
-          "
-        >
-          <video
-            ref="localVideoRef"
-            v-show="state.isCameraEnabled"
-            autoplay
-            muted
-            playsinline
-            class="w-full h-full object-cover"
-          ></video>
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
 
-          <div
-            v-if="!state.isCameraEnabled"
-            class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700"
-          >
-            <div class="text-white text-3xl font-bold">
-              {{ getInitials(participantName) }}
-            </div>
-          </div>
+/* Кастомные стили для скроллбара */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
 
-          <div class="absolute top-3 right-3 flex space-x-2">
-            <div
-              class="w-8 h-8 rounded-full flex items-center justify-center shadow-lg"
-              :class="state.isMicEnabled ? 'bg-green-500' : 'bg-red-500'"
-            >
-              <!-- mic icon -->
-            </div>
-            <div
-              v-if="!state.isCameraEnabled"
-              class="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg"
-            >
-              <!-- camera off icon -->
-            </div>
-          </div>
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: rgba(75, 85, 99, 0.3);
+  border-radius: 3px;
+}
 
-          <div
-            class="absolute bottom-3 left-3 bg-black/60 text-white px-3 py-1 rounded-lg text-sm font-medium backdrop-blur-sm"
-          >
-            Вы ({{ participantName }})
-          </div>
-        </div>
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+}
 
-        <!-- Удалённые участники -->
-        <template v-for="participant in participants" :key="participant.sid">
-          <div
-            :id="`participant-${participant.sid}`"
-            class="relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl overflow-hidden aspect-video ring-2 transition-all duration-300"
-            :class="
-              state.speakingParticipants.has(participant.sid)
-                ? 'ring-green-400 ring-opacity-75'
-                : 'ring-gray-600'
-            "
-          >
-            <!-- Видео -->
-            <video
-              v-for="pub in Array.from(
-                participant.videoTrackPublications.values()
-              )"
-              v-show="!pub.isMuted"
-              :key="pub.trackSid"
-              autoplay
-              playsinline
-              class="w-full h-full object-cover"
-            ></video>
-
-            <!-- Фото с инициалами, если нет видео -->
-            <div
-              v-if="!hasVideoTrack(participant)"
-              class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700"
-            >
-              <div class="text-white text-2xl font-bold">
-                {{ getInitials(participant.name || participant.identity) }}
-              </div>
-            </div>
-
-            <!-- Индикатор микрофона -->
-            <div
-              class="mic-indicator absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center shadow-lg"
-              :class="
-                hasAudioTrack(participant) ? 'bg-green-500' : 'bg-red-500'
-              "
-            >
-              <!-- mic svg -->
-            </div>
-
-            <!-- Имя участника -->
-            <div
-              class="absolute bottom-3 left-3 bg-black/60 text-white px-3 py-1 rounded-lg text-sm font-medium backdrop-blur-sm"
-            >
-              {{ participant.name || participant.identity }}
-            </div>
-          </div>
-        </template>
-
-        <!-- Нет участников -->
-        <div
-          v-if="participants.length === 0"
-          class="relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl overflow-hidden aspect-video flex items-center justify-center shadow-xl border-2 border-dashed border-gray-600"
-        >
-          <div class="text-center">
-            <p class="text-lg font-semibold text-gray-300 mb-2">
-              Ожидание участников...
-            </p>
-            <p class="text-sm text-gray-500 mb-4">
-              Поделитесь ссылкой для присоединения к комнате
-            </p>
-            <button
-              @click="showInviteModal"
-              class="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg"
-            >
-              Пригласить участников
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Управление -->
-    <div
-      class="fixed bottom-0 left-0 right-0 bg-gray-800/95 backdrop-blur-sm border-t border-gray-700/50 px-6 py-6"
-    >
-      <div class="flex items-center justify-center space-x-6">
-        <button
-          @click="toggleMicrophone"
-          class="group p-4 rounded-full"
-          :class="
-            state.isMicEnabled
-              ? 'bg-gray-700 hover:bg-gray-600'
-              : 'bg-red-600 hover:bg-red-700'
-          "
-        >
-          <!-- mic -->
-        </button>
-
-        <button
-          @click="toggleCamera"
-          class="group p-4 rounded-full"
-          :class="
-            state.isCameraEnabled
-              ? 'bg-gray-700 hover:bg-gray-600'
-              : 'bg-red-600 hover:bg-red-700'
-          "
-        >
-          <!-- camera -->
-        </button>
-
-        <button
-          @click="leaveRoom"
-          class="p-4 rounded-full bg-red-600 hover:bg-red-700 text-white"
-        >
-          <!-- leave -->
-        </button>
-      </div>
-
-      <div class="mt-4 text-center">
-        <p class="text-sm text-gray-400">
-          Участников: {{ participants.length + 1 }}
-          <span
-            v-if="state.speakingParticipants.size > 0 || state.isLocalSpeaking"
-            class="ml-2 text-green-400"
-          >
-            •
-            {{
-              state.speakingParticipants.size + (state.isLocalSpeaking ? 1 : 0)
-            }}
-            говорят
-          </span>
-        </p>
-      </div>
-    </div>
-
-    <!-- Модальное приглашения -->
-    <div
-      v-if="state.showInviteModal"
-      class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
-      @click="closeInviteModal"
-    >
-      <div
-        class="bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl"
-        @click.stop
-      >
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-white">
-            Пригласить участников
-          </h3>
-          <button
-            @click="closeInviteModal"
-            class="text-gray-400 hover:text-white"
-          >
-            ✕
-          </button>
-        </div>
-
-        <p class="text-gray-300 mb-4">
-          Поделитесь этой ссылкой с участниками для присоединения к комнате:
-        </p>
-
-        <div class="flex items-center space-x-2 mb-4">
-          <input
-            :value="state.inviteLink"
-            readonly
-            class="flex-1 bg-gray-700 text-white px-3 py-2 rounded-lg text-sm"
-          />
-          <button
-            @click="copyInviteLink"
-            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-            :class="{ 'bg-green-600 hover:bg-green-700': state.linkCopied }"
-          >
-            {{ state.linkCopied ? "Скопировано!" : "Копировать" }}
-          </button>
-        </div>
-
-        <div class="text-xs text-gray-400">
-          Участники смогут присоединиться к комнате "{{ roomName }}" по этой
-          ссылке
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.7);
+}
+</style>

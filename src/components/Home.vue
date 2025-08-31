@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref } from "vue";
 import { useRouter } from "vue-router";
+import TimeComponent from "./Time.vue";
 
 const router = useRouter();
 
@@ -15,8 +15,12 @@ const goToRoom = (roomId: string) => {
 
 <template>
   <div
-    class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4"
+    class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 relative"
   >
+    <Transition name="fade">
+      <TimeComponent />
+    </Transition>
+
     <div class="max-w-md w-full">
       <!-- Заголовок -->
       <div class="text-center mb-8">
@@ -38,7 +42,7 @@ const goToRoom = (roomId: string) => {
           </svg>
         </div>
         <h1 class="text-3xl font-bold text-gray-900 mb-2">M2 Live</h1>
-        <p class="text-gray-600">Видеозвонки</p>
+        <p class="text-gray-600">Видеозвонки для AI HR</p>
       </div>
 
       <!-- Основные действия -->
