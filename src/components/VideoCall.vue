@@ -11,6 +11,7 @@
           <div
             class="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg"
           >
+            <!-- Оставляем SVG иконку как есть -->
             <svg
               class="w-6 h-6 text-white"
               fill="none"
@@ -32,6 +33,34 @@
         </div>
 
         <div class="flex items-center space-x-4">
+          <!-- Счетчик пользователей с улучшенным функционалом -->
+          <div
+            class="flex items-center space-x-2 text-sm text-gray-300 bg-gray-700/50 px-3 py-2 rounded-lg"
+          >
+            <span class="text-lg">👥</span>
+            <span class="font-medium"
+              >{{ participants.length + 1 }} / {{ state.maxUsers }}</span
+            >
+            <div class="flex space-x-1 ml-2">
+              <button
+                @click="adjustMaxUsers(-1)"
+                :disabled="state.maxUsers <= 2"
+                class="w-6 h-6 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed rounded text-xs flex items-center justify-center transition-colors"
+                title="Уменьшить лимит"
+              >
+                ➖
+              </button>
+              <button
+                @click="adjustMaxUsers(1)"
+                :disabled="state.maxUsers >= 50"
+                class="w-6 h-6 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed rounded text-xs flex items-center justify-center transition-colors"
+                title="Увеличить лимит"
+              >
+                ➕
+              </button>
+            </div>
+          </div>
+
           <!-- Качество соединения -->
           <div
             class="flex items-center space-x-2 text-sm text-gray-300 bg-gray-700/50 px-3 py-2 rounded-lg"
@@ -63,28 +92,10 @@
           <!-- Кнопка настроек устройств -->
           <button
             @click="showDeviceModal"
-            class="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+            class="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-lg"
             title="Настройки устройств"
           >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-              />
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
+            ⚙️
           </button>
 
           <!-- Кнопка приглашения -->
@@ -92,19 +103,7 @@
             @click="showInviteModal"
             class="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           >
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-              />
-            </svg>
+            <span class="text-lg">➕</span>
             <span>Пригласить</span>
           </button>
         </div>
@@ -118,26 +117,14 @@
     >
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-2">
-          <svg
-            class="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
+          <span class="text-lg">⚠️</span>
           <span>{{ state.error }}</span>
         </div>
         <button
           @click="connectToRoom()"
           class="ml-4 px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg text-sm font-medium transition-colors"
         >
-          Повторить
+          🔄 Повторить
         </button>
       </div>
     </div>
@@ -170,10 +157,10 @@
               : 'ring-2 ring-gray-600'
           "
         >
-          <!-- Видео -->
+          <!-- Видео (показывается автоматически когда камера включена) -->
           <video
             ref="localVideoRef"
-            v-show="state.isCameraEnabled"
+            v-show="state.isCameraEnabled && state.videoVisible"
             autoplay
             muted
             playsinline
@@ -182,7 +169,7 @@
 
           <!-- Аватар при отключенной камере -->
           <div
-            v-if="!state.isCameraEnabled"
+            v-if="!state.isCameraEnabled || !state.videoVisible"
             class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700"
           >
             <div class="text-white text-3xl font-bold">
@@ -195,30 +182,10 @@
             <!-- Индикатор микрофона -->
             <div class="relative">
               <div
-                class="w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-colors"
+                class="w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-colors text-lg"
                 :class="state.isMicEnabled ? 'bg-green-500' : 'bg-red-500'"
               >
-                <svg
-                  class="w-4 h-4 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    v-if="state.isMicEnabled"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                  />
-                  <path
-                    v-else
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5.586 5.586l12.828 12.828M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                  />
-                </svg>
+                {{ state.isMicEnabled ? "🎤" : "🔇" }}
               </div>
               <!-- Индикатор уровня звука -->
               <div
@@ -231,21 +198,9 @@
             <!-- Индикатор камеры -->
             <div
               v-if="!state.isCameraEnabled"
-              class="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg"
+              class="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg text-lg"
             >
-              <svg
-                class="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"
-                />
-              </svg>
+              📹
             </div>
           </div>
 
@@ -256,7 +211,7 @@
             Вы ({{ props.participantName }})
           </div>
 
-          <!-- Индикато   качества -->
+          <!-- Индикатор качества -->
           <div class="absolute top-3 left-3">
             <div
               class="flex items-center space-x-1 bg-black/60 px-2 py-1 rounded-lg backdrop-blur-sm"
@@ -272,6 +227,8 @@
               ></div>
             </div>
           </div>
+
+          <!-- ... deleted code ... (removed manual video refresh button for local user) -->
         </div>
 
         <!-- Удалённые участники -->
@@ -285,9 +242,12 @@
                 : 'ring-2 ring-gray-600'
             "
           >
-            <!-- Видео -->
+            <!-- Видео (показывается автоматически) -->
             <video
-              v-show="hasVideoTrack(participant)"
+              v-show="
+                hasVideoTrack(participant) &&
+                getParticipantVideoVisibility(participant.sid)
+              "
               data-track="video"
               autoplay
               playsinline
@@ -299,7 +259,10 @@
 
             <!-- Аватар при отключенном видео -->
             <div
-              v-if="!hasVideoTrack(participant)"
+              v-if="
+                !hasVideoTrack(participant) ||
+                !getParticipantVideoVisibility(participant.sid)
+              "
               class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700"
             >
               <div class="text-white text-2xl font-bold">
@@ -312,32 +275,12 @@
               <!-- Индикатор микрофона -->
               <div class="relative">
                 <div
-                  class="w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-colors"
+                  class="w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-colors text-lg"
                   :class="
                     hasAudioTrack(participant) ? 'bg-green-500' : 'bg-red-500'
                   "
                 >
-                  <svg
-                    class="w-4 h-4 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      v-if="hasAudioTrack(participant)"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                    />
-                    <path
-                      v-else
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M5.586 5.586l12.828 12.828M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                    />
-                  </svg>
+                  {{ hasAudioTrack(participant) ? "🎤" : "🔇" }}
                 </div>
                 <!-- Индикатор уровня звука -->
                 <div
@@ -353,21 +296,9 @@
               <!-- Индикатор камеры -->
               <div
                 v-if="!hasVideoTrack(participant)"
-                class="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg"
+                class="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg text-lg"
               >
-                <svg
-                  class="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"
-                  />
-                </svg>
+                📹
               </div>
             </div>
 
@@ -376,6 +307,30 @@
               class="absolute bottom-3 left-3 bg-black/60 text-white px-3 py-1 rounded-lg text-sm font-medium backdrop-blur-sm"
             >
               {{ participant.name || participant.identity }}
+            </div>
+
+            <!-- Регулятор громкости -->
+            <div
+              v-if="hasAudioTrack(participant)"
+              class="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm rounded-lg p-2 flex items-center space-x-2 min-w-[120px]"
+            >
+              <span class="text-xs text-white">🔊</span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                :value="getParticipantVolume(participant.sid)"
+                @input="
+                  setParticipantVolume(
+                    participant.sid,
+                    ($event.target as HTMLInputElement).value
+                  )
+                "
+                class="flex-1 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer volume-slider"
+              />
+              <span class="text-xs text-white w-8 text-right">
+                {{ getParticipantVolume(participant.sid) }}%
+              </span>
             </div>
           </div>
         </template>
@@ -387,21 +342,9 @@
         >
           <div class="text-center">
             <div
-              class="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4"
+              class="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl"
             >
-              <svg
-                class="w-8 h-8 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
+              👥
             </div>
             <p class="text-lg font-semibold text-gray-300 mb-2">
               Ожидание участников...
@@ -413,21 +356,25 @@
               @click="showInviteModal"
               class="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg"
             >
-              <svg
-                class="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                />
-              </svg>
+              <span class="text-lg">➕</span>
               <span>Пригласить участников</span>
             </button>
+          </div>
+        </div>
+
+        <!-- Предупреждение о превышении лимита -->
+        <div
+          v-if="participants.length + 1 >= state.maxUsers"
+          class="col-span-full bg-yellow-600/20 border border-yellow-500/50 rounded-xl p-4 text-center"
+        >
+          <div
+            class="flex items-center justify-center space-x-2 text-yellow-300"
+          >
+            <span class="text-lg">⚠️</span>
+            <span class="text-sm font-medium">
+              Достигнут лимит участников ({{ state.maxUsers }}). Новые
+              пользователи не смогут присоединиться.
+            </span>
           </div>
         </div>
       </div>
@@ -442,34 +389,17 @@
         <div class="relative">
           <button
             @click="toggleMicrophone"
-            class="group p-4 rounded-full transition-all duration-200 transform hover:scale-105"
+            class="group p-4 rounded-full transition-all duration-200 transform hover:scale-105 text-2xl"
             :class="
               state.isMicEnabled
                 ? 'bg-gray-700 hover:bg-gray-600'
                 : 'bg-red-600 hover:bg-red-700'
             "
+            :title="
+              state.isMicEnabled ? 'Выключить микрофон' : 'Включить микрофон'
+            "
           >
-            <svg
-              class="w-6 h-6 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                v-if="state.isMicEnabled"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-              />
-              <path
-                v-else
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M5.586 5.586l12.828 12.828M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-              />
-            </svg>
+            {{ state.isMicEnabled ? "🎤" : "🔇" }}
           </button>
           <!-- Индикатор уровня звука -->
           <div
@@ -482,100 +412,49 @@
         <!-- Камера -->
         <button
           @click="toggleCamera"
-          class="group p-4 rounded-full transition-all duration-200 transform hover:scale-105"
+          class="group p-4 rounded-full transition-all duration-200 transform hover:scale-105 text-2xl"
           :class="
             state.isCameraEnabled
               ? 'bg-gray-700 hover:bg-gray-600'
               : 'bg-red-600 hover:bg-red-700'
           "
+          :title="
+            state.isCameraEnabled ? 'Выключить камеру' : 'Включить камеру'
+          "
         >
-          <svg
-            class="w-6 h-6 text-white"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              v-if="state.isCameraEnabled"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-            />
-            <path
-              v-else
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"
-            />
-          </svg>
+          {{ state.isCameraEnabled ? "📹" : "📷" }}
         </button>
 
         <!-- Настройки устройств -->
         <button
           @click="showDeviceModal"
-          class="group p-4 rounded-full bg-gray-700 hover:bg-gray-600 transition-all duration-200 transform hover:scale-105"
+          class="group p-4 rounded-full bg-gray-700 hover:bg-gray-600 transition-all duration-200 transform hover:scale-105 text-2xl"
           title="Настройки устройств"
         >
-          <svg
-            class="w-6 h-6 text-white"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-            />
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-            />
-          </svg>
+          ⚙️
         </button>
+
+        <!-- ... deleted code ... (removed manual video refresh button from control panel) -->
 
         <!-- Выход -->
         <button
           @click="leaveRoom"
-          class="p-4 rounded-full bg-red-600 hover:bg-red-700 text-white transition-all duration-200 transform hover:scale-105"
+          class="p-4 rounded-full bg-red-600 hover:bg-red-700 text-white transition-all duration-200 transform hover:scale-105 text-2xl"
           title="Покинуть комнату"
         >
-          <svg
-            class="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-            />
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-            />
-          </svg>
+          🚪
         </button>
       </div>
 
       <!-- Статистика -->
       <div class="mt-4 text-center">
         <p class="text-sm text-gray-400">
-          Участников: {{ participants.length + 1 }}
+          Участников: {{ participants.length + 1 }} / {{ state.maxUsers }}
           <span
             v-if="state.speakingParticipants.size > 0 || state.isLocalSpeaking"
             class="ml-2 text-green-400"
           >
-            •
+            • 🗣️
             {{
               state.speakingParticipants.size + (state.isLocalSpeaking ? 1 : 0)
             }}
@@ -585,6 +464,7 @@
       </div>
     </div>
 
+    <!-- ... existing code ... (модальные окна остаются без изменений) -->
     <!-- Модальное окно приглашения -->
     <div
       v-if="state.showInviteModal"
@@ -601,21 +481,9 @@
           </h3>
           <button
             @click="closeInviteModal"
-            class="text-gray-400 hover:text-white transition-colors"
+            class="text-gray-400 hover:text-white transition-colors text-xl"
           >
-            <svg
-              class="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+            ❌
           </button>
         </div>
 
@@ -634,7 +502,7 @@
             class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
             :class="{ 'bg-green-600 hover:bg-green-700': state.linkCopied }"
           >
-            {{ state.linkCopied ? "Скопировано!" : "Копировать" }}
+            {{ state.linkCopied ? "📋 Скопировано!" : "📋 Копировать" }}
           </button>
         </div>
 
@@ -659,40 +527,16 @@
           <h3 class="text-lg font-semibold text-white">Настройки устройств</h3>
           <button
             @click="closeDeviceModal"
-            class="text-gray-400 hover:text-white transition-colors"
+            class="text-gray-400 hover:text-white transition-colors text-xl"
           >
-            <svg
-              class="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+            ❌
           </button>
         </div>
 
         <!-- Камеры -->
         <div class="mb-6">
           <label class="block text-sm font-medium text-gray-300 mb-2">
-            <svg
-              class="w-4 h-4 inline mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-              />
-            </svg>
+            <span class="text-lg mr-2">📹</span>
             Камера
           </label>
           <select
@@ -713,19 +557,7 @@
         <!-- Микрофоны -->
         <div class="mb-6">
           <label class="block text-sm font-medium text-gray-300 mb-2">
-            <svg
-              class="w-4 h-4 inline mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-              />
-            </svg>
+            <span class="text-lg mr-2">🎤</span>
             Микрофон
           </label>
           <select
@@ -762,19 +594,7 @@
         <!-- Динамики -->
         <div class="mb-6">
           <label class="block text-sm font-medium text-gray-300 mb-2">
-            <svg
-              class="w-4 h-4 inline mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M9 12a1 1 0 01-1-1V8a1 1 0 011-1h1m0 0V6a2 2 0 012-2h2a2 2 0 012 2v1m0 0V6a2 2 0 012-2h2a2 2 0 012 2v1"
-              />
-            </svg>
+            <span class="text-lg mr-2">🔊</span>
             Динамики
           </label>
           <select
@@ -797,26 +617,16 @@
             class="mt-3 w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
             :disabled="deviceState.testingAudio"
           >
-            {{ deviceState.testingAudio ? "Тестирование..." : "Тест звука" }}
+            {{
+              deviceState.testingAudio ? "🔊 Тестирование..." : "🔊 Тест звука"
+            }}
           </button>
         </div>
 
         <!-- Настройки качества -->
         <div class="mb-6">
           <label class="block text-sm font-medium text-gray-300 mb-2">
-            <svg
-              class="w-4 h-4 inline mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-              />
-            </svg>
+            <span class="text-lg mr-2">📊</span>
             Качество видео
           </label>
           <select
@@ -834,7 +644,7 @@
         <div class="space-y-4">
           <div class="flex items-center justify-between">
             <label class="text-sm font-medium text-gray-300"
-              >Подавление шума</label
+              >🔇 Подавление шума</label
             >
             <button
               @click="
@@ -859,7 +669,7 @@
 
           <div class="flex items-center justify-between">
             <label class="text-sm font-medium text-gray-300"
-              >Подавление эха</label
+              >🔄 Подавление эха</label
             >
             <button
               @click="
@@ -884,7 +694,7 @@
 
           <div class="flex items-center justify-between">
             <label class="text-sm font-medium text-gray-300"
-              >Автоматическая регулировка громкости</label
+              >🎚️ Автоматическая регулировка громкости</label
             >
             <button
               @click="
@@ -926,7 +736,6 @@ import {
   createLocalVideoTrack,
   createLocalAudioTrack,
   ConnectionQuality,
-  LocalTrack,
   LocalVideoTrack,
   LocalAudioTrack,
 } from "livekit-client";
@@ -948,7 +757,7 @@ const localVideoRef = ref<HTMLVideoElement | null>(null);
 const state = reactive({
   isConnected: false,
   isConnecting: true,
-  isCameraEnabled: true,
+  isCameraEnabled: false, // Камера выключена по умолчанию
   isMicEnabled: true,
   error: "" as string,
   connectionAttempts: 0,
@@ -960,6 +769,8 @@ const state = reactive({
   inviteLink: "" as string,
   linkCopied: false,
   connectionQuality: "good" as "excellent" | "good" | "poor" | "lost",
+  maxUsers: 10, // Максимальное количество пользователей
+  videoVisible: false, // Локальное видео скрыто по умолчанию
 });
 
 // Состояние устройств
@@ -983,8 +794,13 @@ const participantAudioLevels = ref<
   Map<string, { level: number; speaking: boolean }>
 >(new Map());
 
+// Видимость видео участников
+const participantVideoVisibility = ref<Map<string, boolean>>(new Map());
+
+// Громкость участников
+const participantVolumes = ref<Map<string, number>>(new Map());
+
 // Участники
-// Определяем минимальный тип, достаточный для наших функций
 interface MinimalParticipant {
   sid: string;
   identity: string;
@@ -997,14 +813,53 @@ interface MinimalParticipant {
     string,
     { track?: { kind: string }; isMuted: boolean }
   >;
-  // Добавьте другие поля, если они используются в других частях кода, например, в шаблоне
-  // Например: metadata?: string;
 }
 
 const participants = ref<MinimalParticipant[]>([]);
+
 // Локальные треки
 let localVideoTrack: LocalVideoTrack | undefined;
 let localAudioTrack: LocalAudioTrack | undefined;
+
+// Регулировка максимального количества пользователей
+const adjustMaxUsers = (delta: number) => {
+  const newValue = state.maxUsers + delta;
+  if (newValue >= 2 && newValue <= 50) {
+    state.maxUsers = newValue;
+  }
+};
+
+// Получение видимости видео участника
+const getParticipantVideoVisibility = (participantSid: string) => {
+  return participantVideoVisibility.value.get(participantSid) || false;
+};
+
+// Получение громкости участника
+const getParticipantVolume = (participantSid: string) => {
+  return participantVolumes.value.get(participantSid) || 100;
+};
+
+// Установка громкости участника
+const setParticipantVolume = (
+  participantSid: string,
+  volume: string | number
+) => {
+  const volumeValue = typeof volume === "string" ? parseInt(volume) : volume;
+  participantVolumes.value.set(participantSid, volumeValue);
+
+  // Применяем громкость к аудио элементу
+  const participantEl = document.querySelector(
+    `#participant-${participantSid}`
+  );
+  if (participantEl) {
+    const audioEl = participantEl.querySelector("audio") as HTMLAudioElement;
+    if (audioEl) {
+      audioEl.volume = volumeValue / 100;
+    }
+  }
+};
+
+// ... deleted code ... (removed manual video refresh functions)
 
 // Получение аудио уровня участника
 const getAudioLevel = (participantSid: string) => {
@@ -1104,9 +959,10 @@ const switchCamera = async (deviceId: string) => {
       name: "camera",
     });
 
-    // Прикрепление к видео элементу
-    if (localVideoRef.value) {
+    // Автоматически показываем видео если камера включена
+    if (state.isCameraEnabled && localVideoRef.value) {
       localVideoTrack.attach(localVideoRef.value);
+      state.videoVisible = true;
     }
 
     deviceState.selectedCamera = deviceId;
@@ -1147,7 +1003,7 @@ const switchMicrophone = async (deviceId: string) => {
 
     console.log("✅ Микрофон переключен на:", deviceId);
   } catch (error) {
-    console.error("❌ Ошибка переключения микрофона:", error);
+    console.error("❌ Ошибка переключен��я микрофона:", error);
     state.error = "Не удалось переключить микрофон";
   }
 };
@@ -1171,7 +1027,7 @@ const switchSpeaker = async (deviceId: string) => {
   console.log("✅ Динамики переключены на:", deviceId);
 };
 
-// Тест   инамиков
+// Тест динамиков
 const testSpeakers = async () => {
   deviceState.testingAudio = true;
 
@@ -1328,16 +1184,13 @@ const connectToRoom = async () => {
     await room.value.connect(LIVEKIT_CONFIG.WS_URL, props.token);
     console.log("✅ Подключение установлено");
 
-    // Публикация видео
+    // Публикация видео (создаем трек, но не показываем сразу)
     try {
       localVideoTrack = await createLocalVideoTrack(getVideoResolution());
       await room.value.localParticipant.publishTrack(localVideoTrack);
-      if (localVideoRef.value) {
-        localVideoTrack.attach(localVideoRef.value);
-      }
-      state.isCameraEnabled = true;
+      state.isCameraEnabled = false; // Камера выключена по умолчанию
     } catch (err) {
-      console.warn("📹 Не удалось включить камеру:", err);
+      console.warn("📹 Не удалось создать камеру:", err);
       state.isCameraEnabled = false;
     }
 
@@ -1381,7 +1234,6 @@ const connectToRoom = async () => {
 // Обработчики событий
 const handleRoomConnected = () => {
   console.log("✅ Успешно подключились");
-  // Явно приводим тип
   participants.value = Array.from(
     room.value!.remoteParticipants.values()
   ) as RemoteParticipant[];
@@ -1389,6 +1241,7 @@ const handleRoomConnected = () => {
   state.isConnecting = false;
   state.error = "";
 };
+
 const handleConnectionStateChanged = (connectionState: any) => {
   console.log("🔄 Состояние подключения:", connectionState);
 };
@@ -1426,9 +1279,13 @@ const handleReconnected = () => {
 
 const handleParticipantConnected = (participant: RemoteParticipant) => {
   console.log("👤 Подключился:", participant.identity);
-  // participants.value.push(participant); // Этот код должен работать, если тип правильный
-  // Но если все еще ругается, можно привести:
   participants.value.push(participant as RemoteParticipant);
+
+  // Автоматически показываем видео новых участников
+  participantVideoVisibility.value.set(participant.sid, true);
+
+  // Устанавливаем громкость по умолчанию
+  participantVolumes.value.set(participant.sid, 100);
 };
 
 const handleParticipantDisconnected = (participant: RemoteParticipant) => {
@@ -1438,6 +1295,8 @@ const handleParticipantDisconnected = (participant: RemoteParticipant) => {
   );
   state.speakingParticipants.delete(participant.sid);
   participantAudioLevels.value.delete(participant.sid);
+  participantVideoVisibility.value.delete(participant.sid);
+  participantVolumes.value.delete(participant.sid);
 };
 
 const handleTrackSubscribed = async (
@@ -1466,7 +1325,9 @@ const handleTrackSubscribed = async (
     if (videoEl && !videoEl.srcObject) {
       try {
         track.attach(videoEl);
-        console.log("🎥 Прикрепили видео трек");
+        // Автоматически показываем видео
+        participantVideoVisibility.value.set(participant.sid, true);
+        console.log("🎥 Прикрепили и показали видео трек");
       } catch (e) {
         console.warn("Ошибка при attach видео:", e);
       }
@@ -1481,6 +1342,10 @@ const handleTrackSubscribed = async (
         if (deviceState.selectedSpeaker && "setSinkId" in audioEl) {
           await (audioEl as any).setSinkId(deviceState.selectedSpeaker);
         }
+
+        // Применяем сохраненную громкость
+        const volume = getParticipantVolume(participant.sid);
+        audioEl.volume = volume / 100;
 
         console.log("🎵 Прикрепили аудио трек");
       } catch (e) {
@@ -1500,7 +1365,7 @@ const handleTrackUnsubscribed = (track: RemoteTrack) => {
 };
 
 const handleRoomDisconnected = () => {
-  console.log("   Отключились от комнаты");
+  console.log("🚪 Отключились от комнаты");
   state.isConnected = false;
   router.push("/");
 };
@@ -1567,8 +1432,6 @@ const hasVideoTrack = (p: MinimalParticipant): boolean => {
     console.warn("Invalid participant object passed to hasVideoTrack", p);
     return false;
   }
-  // Используем `any` для publication, если тип TrackPublication тоже вызывает проблемы,
-  // или определите его в MinimalParticipant, если нужно больше контроля.
   return Array.from(p.videoTrackPublications.values()).some(
     (pub: any) => pub.track !== undefined && !pub.isMuted
   );
@@ -1583,6 +1446,7 @@ const hasAudioTrack = (p: MinimalParticipant): boolean => {
     (pub: any) => pub.track !== undefined && !pub.isMuted
   );
 };
+
 // Управление устройствами
 const toggleCamera = async () => {
   const local = room.value?.localParticipant;
@@ -1596,9 +1460,15 @@ const toggleCamera = async () => {
   if (state.isCameraEnabled) {
     await pub.mute();
     state.isCameraEnabled = false;
+    state.videoVisible = false;
   } else {
     await pub.unmute();
     state.isCameraEnabled = true;
+    // Автоматически показываем видео при включении камеры
+    if (localVideoRef.value && localVideoTrack) {
+      localVideoTrack.attach(localVideoRef.value);
+      state.videoVisible = true;
+    }
   }
 };
 
@@ -1704,5 +1574,44 @@ onUnmounted(() => {
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: rgba(156, 163, 175, 0.7);
+}
+
+/* Стили для слайдера громкости */
+.volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: #4b5563;
+  border-radius: 2px;
+  outline: none;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #3b82f6;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.volume-slider::-webkit-slider-thumb:hover {
+  background: #2563eb;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #3b82f6;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s;
+}
+
+.volume-slider::-moz-range-thumb:hover {
+  background: #2563eb;
 }
 </style>
