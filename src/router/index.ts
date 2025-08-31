@@ -20,7 +20,7 @@ const routes = [
     name: "RoomInvite",
     component: RoomInvite,
     props: true,
-    beforeEnter: (to, from, next) => {
+    beforeEnter: (to: any, from: any, next: any) => {
       // Валидация параметра roomId
       const roomId = to.params.roomId as string;
       if (!roomId || roomId.trim().length < 3) {
@@ -34,12 +34,12 @@ const routes = [
     path: "/call",
     name: "VideoCall",
     component: VideoCall,
-    props: (route) => ({
+    props: (route: any) => ({
       roomName: route.query.roomName,
       participantName: route.query.participantName,
       token: route.query.token,
     }),
-    beforeEnter: (to, from, next) => {
+    beforeEnter: (to: any, from: any, next: any) => {
       // Проверяем наличие необходимых параметров
       const { roomName, participantName, token } = to.query;
       if (!roomName || !participantName || !token) {

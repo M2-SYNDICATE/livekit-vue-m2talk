@@ -4,10 +4,8 @@ import { useRouter } from "vue-router";
 import {
   Room,
   RoomEvent,
-  Track,
   RemoteTrack,
   RemoteParticipant,
-  LocalParticipant,
   Participant,
   TrackPublication,
   ConnectionError,
@@ -25,24 +23,27 @@ interface Props {
 const props = defineProps<Props>();
 const router = useRouter();
 
-const room = ref<Room>();
-const localVideoRef = ref<HTMLVideoElement>();
+const room = ref<Room | undefined>(undefined);
+const localVideoRef = ref<HTMLVideoElement | null>(null);
 
+// Общий reactive state (без participants)
 const state = reactive({
   isConnected: false,
   isConnecting: true,
   isCameraEnabled: true,
   isMicEnabled: true,
-  participants: [] as RemoteParticipant[],
-  error: "",
+  error: "" as string,
   connectionAttempts: 0,
   maxAttempts: 3,
   speakingParticipants: new Set<string>(),
   isLocalSpeaking: false,
   showInviteModal: false,
-  inviteLink: "",
+  inviteLink: "" as string,
   linkCopied: false,
 });
+
+// ✅ participants — отдельный ref с правильным типом
+const participants = ref<RemoteParticipant[]>([]);
 
 // Генерация ссылки приглашения
 const generateInviteLink = () => {
@@ -63,22 +64,19 @@ const copyInviteLink = async () => {
   }
 };
 
-// Показать модальное окно приглашения
 const showInviteModal = () => {
   generateInviteLink();
   state.showInviteModal = true;
 };
 
-// Закрыть модальное окно
 const closeInviteModal = () => {
   state.showInviteModal = false;
   state.linkCopied = false;
 };
 
-// Динамическая сетка
+// Динамическая сетка — в script используем participants.value
 const gridClasses = computed(() => {
-  const totalParticipants = state.participants.length + 1;
-
+  const totalParticipants = participants.value.length + 1; // +1 локальный
   if (totalParticipants === 1)
     return "grid grid-cols-1 md:grid-cols-2 gap-6 h-full min-h-[60vh]";
   if (totalParticipants === 2)
@@ -101,11 +99,9 @@ const connectToRoom = async () => {
   }
 
   try {
-    room.value = new Room({
-      autoSubscribe: true,
-    });
+    room.value = new Room();
 
-    // Обработчики событий
+    // Обработчики
     room.value.on(RoomEvent.Connected, handleRoomConnected);
     room.value.on(RoomEvent.ParticipantConnected, handleParticipantConnected);
     room.value.on(
@@ -125,11 +121,11 @@ const connectToRoom = async () => {
     room.value.on(RoomEvent.TrackMuted, handleTrackMuted);
     room.value.on(RoomEvent.TrackUnmuted, handleTrackUnmuted);
 
-    // 🔁 Сначала connect(), потом публикация
+    // Сначала connect()
     await room.value.connect(LIVEKIT_CONFIG.WS_URL, props.token);
     console.log("✅ Подключение установлено");
 
-    // Теперь публикуем
+    // Публикуем видео
     try {
       const videoTrack = await createLocalVideoTrack({
         resolution: { width: 1280, height: 720, frameRate: 30 },
@@ -144,6 +140,7 @@ const connectToRoom = async () => {
       state.isCameraEnabled = false;
     }
 
+    // Публикуем аудио
     try {
       const audioTrack = await createLocalAudioTrack({
         autoGainControl: true,
@@ -156,7 +153,7 @@ const connectToRoom = async () => {
       console.warn("🎤 Не удалось включить микрофон:", err);
       state.isMicEnabled = false;
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Ошибка подключения:", error);
     let msg = "Не удалось подключиться к комнате";
 
@@ -177,13 +174,13 @@ const connectToRoom = async () => {
   }
 };
 
-// Обработчики событий
+// Обработчики
 const handleRoomConnected = () => {
   console.log("✅ Успешно подключились");
   state.isConnected = true;
   state.isConnecting = false;
   state.error = "";
-  state.participants = Array.from(room.value!.remoteParticipants.values());
+  participants.value = Array.from(room.value!.remoteParticipants.values());
 };
 
 const handleConnectionStateChanged = (connectionState: any) => {
@@ -202,12 +199,12 @@ const handleReconnected = () => {
 
 const handleParticipantConnected = (participant: RemoteParticipant) => {
   console.log("👤 Подключился:", participant.identity);
-  state.participants.push(participant);
+  participants.value.push(participant);
 };
 
 const handleParticipantDisconnected = (participant: RemoteParticipant) => {
   console.log("👋 Отключился:", participant.identity);
-  state.participants = state.participants.filter(
+  participants.value = participants.value.filter(
     (p) => p.sid !== participant.sid
   );
   state.speakingParticipants.delete(participant.sid);
@@ -218,23 +215,39 @@ const handleTrackSubscribed = async (
   publication: TrackPublication,
   participant: RemoteParticipant
 ) => {
-  console.log("📺 Подписан на трек:", track.kind, "от", participant.identity);
+  console.log(
+    "📺 ПОДПИСАЛИСЬ НА ТРЕК:",
+    track.kind,
+    "от",
+    participant.identity
+  );
 
-  if (track.kind === Track.Kind.Video) {
-    await nextTick(); // Дождёмся рендера
-    const videoEl = document.querySelector(
-      `#participant-${participant.sid} video[autoplay]`
-    ) as HTMLVideoElement;
+  await nextTick(); // дождаться DOM
 
-    if (videoEl && !videoEl.srcObject) {
-      track.attach(videoEl);
+  const videoEl = document.querySelector(
+    `#participant-${participant.sid} video[autoplay]`
+  ) as HTMLVideoElement | null;
+
+  if (videoEl && !videoEl.srcObject) {
+    try {
+      // track.attach может принимать HTMLVideoElement
+      (track as any).attach?.(videoEl);
+      console.log("🎥 Прикрепили трек к видео:", videoEl);
+    } catch (e) {
+      console.warn("Ошибка при attach:", e);
     }
+  } else {
+    console.warn("⚠️ Не найден video элемент или уже прикреплён");
   }
 };
 
 const handleTrackUnsubscribed = (track: RemoteTrack) => {
   console.log("📺 Отписка от трека:", track.kind);
-  track.detach();
+  try {
+    (track as any).detach?.();
+  } catch (e) {
+    // ignore
+  }
 };
 
 const handleRoomDisconnected = () => {
@@ -267,35 +280,37 @@ const handleTrackUnmuted = (
   console.log("🔊 Трек включен:", pub.kind, participant.identity);
 };
 
-// Вспомогательные функции
-const getInitials = (name: string): string => {
-  return name
+// Вспомогательные
+const getInitials = (name: string) =>
+  name
     .split(" ")
     .map((w) => w.charAt(0))
     .join("")
     .toUpperCase()
     .slice(0, 2);
-};
 
-const hasVideoTrack = (participant: RemoteParticipant) => {
+const hasVideoTrack = (p: unknown): boolean => {
+  const participant = p as RemoteParticipant;
   return Array.from(participant.videoTrackPublications.values()).some(
-    (pub) => !pub.isMuted && pub.track
+    (pub: TrackPublication) => pub.track !== undefined && !pub.isMuted
   );
 };
 
-const hasAudioTrack = (participant: RemoteParticipant) => {
+const hasAudioTrack = (p: unknown): boolean => {
+  const participant = p as RemoteParticipant;
   return Array.from(participant.audioTrackPublications.values()).some(
-    (pub) => !pub.isMuted && pub.track
+    (pub: TrackPublication) => pub.track !== undefined && !pub.isMuted
   );
 };
-
 // Управление
 const toggleCamera = async () => {
-  const participant = room.value?.localParticipant;
-  if (!participant) return;
+  const local = room.value?.localParticipant;
+  if (!local) return;
 
-  const videoPubs = [...participant.videoTrackPublications.values()];
-  const pub = videoPubs.find((p) => p.track?.mediaStreamTrack.kind === "video");
+  const videoPubs = [...local.videoTrackPublications.values()];
+  const pub = videoPubs.find(
+    (p) => (p.track as any)?.mediaStreamTrack?.kind === "video"
+  );
 
   if (!pub) return;
 
@@ -309,11 +324,13 @@ const toggleCamera = async () => {
 };
 
 const toggleMicrophone = async () => {
-  const participant = room.value?.localParticipant;
-  if (!participant) return;
+  const local = room.value?.localParticipant;
+  if (!local) return;
 
-  const audioPubs = [...participant.audioTrackPublications.values()];
-  const pub = audioPubs.find((p) => p.track?.mediaStreamTrack.kind === "audio");
+  const audioPubs = [...local.audioTrackPublications.values()];
+  const pub = audioPubs.find(
+    (p) => (p.track as any)?.mediaStreamTrack?.kind === "audio"
+  );
 
   if (!pub) return;
 
@@ -330,10 +347,10 @@ const leaveRoom = async () => {
   console.log("🚪 Выход из комнаты...");
   if (room.value) {
     room.value.localParticipant.videoTrackPublications.forEach((p) =>
-      p.track?.stop()
+      (p.track as any)?.stop?.()
     );
     room.value.localParticipant.audioTrackPublications.forEach((p) =>
-      p.track?.stop()
+      (p.track as any)?.stop?.()
     );
     await room.value.disconnect();
   }
@@ -345,10 +362,10 @@ onMounted(() => connectToRoom());
 onUnmounted(() => {
   if (room.value) {
     room.value.localParticipant.videoTrackPublications.forEach((p) =>
-      p.track?.stop()
+      (p.track as any)?.stop?.()
     );
     room.value.localParticipant.audioTrackPublications.forEach((p) =>
-      p.track?.stop()
+      (p.track as any)?.stop?.()
     );
     room.value.disconnect();
   }
@@ -368,19 +385,7 @@ onUnmounted(() => {
           <div
             class="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg"
           >
-            <svg
-              class="w-6 h-6 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-              />
-            </svg>
+            <!-- icon -->
           </div>
           <div>
             <h1 class="text-xl font-bold">{{ roomName }}</h1>
@@ -388,28 +393,12 @@ onUnmounted(() => {
           </div>
         </div>
         <div class="flex items-center space-x-4">
-          <!-- Кнопка приглашения -->
           <button
             @click="showInviteModal"
             class="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           >
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-              />
-            </svg>
             <span>Пригласить</span>
           </button>
-
-          <!-- Статус подключения -->
           <div
             class="flex items-center space-x-2 text-sm text-gray-300 bg-gray-700/50 px-3 py-2 rounded-lg"
           >
@@ -436,19 +425,6 @@ onUnmounted(() => {
     >
       <div class="flex items-center justify-between">
         <div class="flex items-center">
-          <svg
-            class="w-5 h-5 mr-3 text-red-200"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
           {{ state.error }}
         </div>
         <button
@@ -466,25 +442,6 @@ onUnmounted(() => {
       class="flex-1 flex items-center justify-center min-h-[70vh]"
     >
       <div class="text-center">
-        <svg
-          class="animate-spin h-16 w-16 text-blue-500 mx-auto mb-6"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            class="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            stroke-width="4"
-          ></circle>
-          <path
-            class="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          ></path>
-        </svg>
         <p class="text-xl font-semibold mb-2">Подключение...</p>
         <p class="text-sm text-gray-400">
           Попытка {{ state.connectionAttempts }} из {{ state.maxAttempts }}
@@ -498,10 +455,11 @@ onUnmounted(() => {
         <!-- Локальное видео -->
         <div
           class="relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl overflow-hidden aspect-video shadow-xl"
-          :class="{
-            'ring-4 ring-green-400 ring-opacity-75': state.isLocalSpeaking,
-            'ring-2 ring-gray-600': !state.isLocalSpeaking,
-          }"
+          :class="
+            state.isLocalSpeaking
+              ? 'ring-4 ring-green-400 ring-opacity-75'
+              : 'ring-2 ring-gray-600'
+          "
         >
           <video
             ref="localVideoRef"
@@ -521,43 +479,18 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- Индикаторы -->
           <div class="absolute top-3 right-3 flex space-x-2">
-            <!-- Микрофон -->
             <div
               class="w-8 h-8 rounded-full flex items-center justify-center shadow-lg"
               :class="state.isMicEnabled ? 'bg-green-500' : 'bg-red-500'"
             >
-              <svg
-                class="w-4 h-4 text-white"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  v-if="state.isMicEnabled"
-                  fill-rule="evenodd"
-                  d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z"
-                  clip-rule="evenodd"
-                />
-                <path
-                  v-else
-                  fill-rule="evenodd"
-                  d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z"
-                  clip-rule="evenodd"
-                />
-              </svg>
+              <!-- mic icon -->
             </div>
-
-            <!-- Камера выключена -->
             <div
               v-if="!state.isCameraEnabled"
               class="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg"
             >
-              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 15 15">
-                <path
-                  d="m6.5 0c-.265625 0-.519531.105469-.707031.292969L4.085938 2.000000H3.0625l-1.53125-1.53125L.46875.53125l14 14 1.0625-1.0625-.386719-.386719c.527344-.539062.855469-1.277343.855469-2.082031v-7c0-1.644531-1.355469-3-3-3h-1.085938l-1.707031-1.707031c-.1875-.1875-.441406-.292969-.707031-.292969zm.414062 2h2.171876l1.707031 1.707031c.1875.1875.441406.292969.707031.292969h1.5c.570312 0 1 .429688 1 1v7c0 .269531-.097656.503906-.257812.679688l-2.4375-2.4375c.4375-.640626.695312-1.414063.695312-2.242188 0-2.199219-1.800781-4-4-4-.828125 0-1.601562.257812-2.242188.695312l-.808593-.808593c.09375-.046875.183593-.105469.257812-.179688zm-6.492187 1.484375c-.265625.445313-.421875.964844-.421875 1.515625v7c0 1.644531 1.355469 3 3 3h8.9375l-2-2h-6.9375c-.570312 0-1-.429688-1-1v-6.9375zm7.578125 2.515625c1.117188 0 2 .882812 2 2 0 .277344-.058594.539062-.15625.78125l-2.625-2.625c.242188-.097656.503906-.15625.78125-.15625zm-3.90625 1.15625c-.058594.273438-.09375.554688-.09375.84375 0 2.199219 1.800781 4 4 4 .289062 0 .570312-.035156.84375-.09375z"
-                />
-              </svg>
+              <!-- camera off icon -->
             </div>
           </div>
 
@@ -569,20 +502,17 @@ onUnmounted(() => {
         </div>
 
         <!-- Удалённые участники -->
-        <template
-          v-for="participant in state.participants"
-          :key="participant.sid"
-        >
+        <template v-for="participant in participants" :key="participant.sid">
           <div
             :id="`participant-${participant.sid}`"
             class="relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl overflow-hidden aspect-video ring-2 transition-all duration-300"
-            :class="{
-              'ring-green-400 ring-opacity-75': state.speakingParticipants.has(
-                participant.sid
-              ),
-              'ring-gray-600': !state.speakingParticipants.has(participant.sid),
-            }"
+            :class="
+              state.speakingParticipants.has(participant.sid)
+                ? 'ring-green-400 ring-opacity-75'
+                : 'ring-gray-600'
+            "
           >
+            <!-- Видео -->
             <video
               v-for="pub in Array.from(
                 participant.videoTrackPublications.values()
@@ -594,6 +524,7 @@ onUnmounted(() => {
               class="w-full h-full object-cover"
             ></video>
 
+            <!-- Фото с инициалами, если нет видео -->
             <div
               v-if="!hasVideoTrack(participant)"
               class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700"
@@ -603,26 +534,17 @@ onUnmounted(() => {
               </div>
             </div>
 
+            <!-- Индикатор микрофона -->
             <div
               class="mic-indicator absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center shadow-lg"
-              :class="{
-                'bg-green-500': hasAudioTrack(participant),
-                'bg-red-500': !hasAudioTrack(participant),
-              }"
+              :class="
+                hasAudioTrack(participant) ? 'bg-green-500' : 'bg-red-500'
+              "
             >
-              <svg
-                class="w-4 h-4 text-white"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fill-rule="evenodd"
-                  d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z"
-                  clip-rule="evenodd"
-                />
-              </svg>
+              <!-- mic svg -->
             </div>
 
+            <!-- Имя участника -->
             <div
               class="absolute bottom-3 left-3 bg-black/60 text-white px-3 py-1 rounded-lg text-sm font-medium backdrop-blur-sm"
             >
@@ -633,57 +555,21 @@ onUnmounted(() => {
 
         <!-- Нет участников -->
         <div
-          v-if="state.participants.length === 0"
+          v-if="participants.length === 0"
           class="relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl overflow-hidden aspect-video flex items-center justify-center shadow-xl border-2 border-dashed border-gray-600"
         >
           <div class="text-center">
-            <div
-              class="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4"
-            >
-              <svg
-                class="w-8 h-8 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10
-                0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0
-                015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002
-                0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2
-                0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
-            </div>
             <p class="text-lg font-semibold text-gray-300 mb-2">
               Ожидание участников...
             </p>
             <p class="text-sm text-gray-500 mb-4">
               Поделитесь ссылкой для присоединения к комнате
             </p>
-
-            <!-- Кнопка приглашения -->
             <button
               @click="showInviteModal"
               class="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg"
             >
-              <svg
-                class="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                />
-              </svg>
-              <span>Пригласить участников</span>
+              Пригласить участников
             </button>
           </div>
         </div>
@@ -695,7 +581,6 @@ onUnmounted(() => {
       class="fixed bottom-0 left-0 right-0 bg-gray-800/95 backdrop-blur-sm border-t border-gray-700/50 px-6 py-6"
     >
       <div class="flex items-center justify-center space-x-6">
-        <!-- Микрофон -->
         <button
           @click="toggleMicrophone"
           class="group p-4 rounded-full"
@@ -705,27 +590,9 @@ onUnmounted(() => {
               : 'bg-red-600 hover:bg-red-700'
           "
         >
-          <svg
-            class="w-6 h-6 text-white"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              v-if="state.isMicEnabled"
-              fill-rule="evenodd"
-              d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z"
-              clip-rule="evenodd"
-            />
-            <path
-              v-else
-              fill-rule="evenodd"
-              d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z"
-              clip-rule="evenodd"
-            />
-          </svg>
+          <!-- mic -->
         </button>
 
-        <!-- Камера -->
         <button
           @click="toggleCamera"
           class="group p-4 rounded-full"
@@ -735,40 +602,20 @@ onUnmounted(() => {
               : 'bg-red-600 hover:bg-red-700'
           "
         >
-          <svg
-            class="w-6 h-6 text-white"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              v-if="state.isCameraEnabled"
-              d="M2 6a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"
-            />
-            <path
-              v-else
-              d="m6.5 0c-.265625 0-.519531.105469-.707031.292969L4.085938 2.000000H3.0625l-1.53125-1.53125L.46875.53125l14 14 1.0625-1.0625-.386719-.386719c.527344-.539062.855469-1.277343.855469-2.082031v-7c0-1.644531-1.355469-3-3-3h-1.085938l-1.707031-1.707031c-.1875-.1875-.441406-.292969-.707031-.292969zm.414062 2h2.171876l1.707031 1.707031c.1875.1875.441406.292969.707031.292969h1.5c.570312 0 1 .429688 1 1v7c0 .269531-.097656.503906-.257812.679688l-2.4375-2.4375c.4375-.640626.695312-1.414063.695312-2.242188 0-2.199219-1.800781-4-4-4-.828125 0-1.601562.257812-2.242188.695312l-.808593-.808593c.09375-.046875.183593-.105469.257812-.179688zm-6.492187 1.484375c-.265625.445313-.421875.964844-.421875 1.515625v7c0 1.644531 1.355469 3 3 3h8.9375l-2-2h-6.9375c-.570312 0-1-.429688-1-1v-6.9375zm7.578125 2.515625c1.117188 0 2 .882812 2 2 0 .277344-.058594.539062-.15625.78125l-2.625-2.625c.242188-.097656.503906-.15625.78125-.15625zm-3.90625 1.15625c-.058594.273438-.09375.554688-.09375.84375 0 2.199219 1.800781 4 4 4 .289062 0 .570312-.035156.84375-.09375z"
-            />
-          </svg>
+          <!-- camera -->
         </button>
 
-        <!-- Выход -->
         <button
           @click="leaveRoom"
           class="p-4 rounded-full bg-red-600 hover:bg-red-700 text-white"
         >
-          <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fill-rule="evenodd"
-              d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z"
-              clip-rule="evenodd"
-            />
-          </svg>
+          <!-- leave -->
         </button>
       </div>
 
       <div class="mt-4 text-center">
         <p class="text-sm text-gray-400">
-          Участников: {{ state.participants.length + 1 }}
+          Участников: {{ participants.length + 1 }}
           <span
             v-if="state.speakingParticipants.size > 0 || state.isLocalSpeaking"
             class="ml-2 text-green-400"
@@ -783,7 +630,7 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Модальное окно приглашения -->
+    <!-- Модальное приглашения -->
     <div
       v-if="state.showInviteModal"
       class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
@@ -801,19 +648,7 @@ onUnmounted(() => {
             @click="closeInviteModal"
             class="text-gray-400 hover:text-white"
           >
-            <svg
-              class="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+            ✕
           </button>
         </div>
 
