@@ -1,3 +1,4 @@
+// server.js
 const express = require("express");
 const { AccessToken } = require("livekit-server-sdk");
 const cors = require("cors");
@@ -60,20 +61,25 @@ app.use((req, res, next) => {
 // Эндпоинт для генерации токенов
 app.post("/getToken", (req, res) => {
   try {
-    const { room, username, permissions = {} } = req.body;
+    // --- ИЗМЕНЕНИЕ 1: Получаем identity из тела запроса ---
+    const { room, username, identity, permissions = {} } = req.body;
 
-    console.log("📝 Запрос токена:", { room, username, permissions });
+    console.log("📝 Запрос токена:", { room, username, identity, permissions });
 
-    if (!room || !username) {
-      console.log("❌ Отсутствуют обязательные параметры");
+    // --- ИЗМЕНЕНИЕ 2: Проверяем обязательные параметры ---
+    // Теперь identity обязателен, username опционален (для отображения)
+    if (!room || !identity) {
+      console.log("❌ Отсутствуют обязательные параметры (room, identity)");
       return res.status(400).json({
-        error: "Необходимо указать room и username",
+        error: "Необходимо указать room и identity",
       });
     }
 
-    // Создание токена доступа
+    // --- ИЗМЕНЕНИЕ 3: Используем переданный уникальный identity ---
+    // Создание токена доступа с уникальным identity
     const token = new AccessToken(API_KEY, API_SECRET, {
-      identity: username,
+      identity: identity, // <-- ИСПРАВЛЕНО: Используем уникальный identity
+      name: username || identity, // <-- ИСПРАВЛЕНО: Используем username как отображаемое имя, fallback на identity
       ttl: "10m", // Токен действует 10 минут
     });
 
@@ -89,7 +95,11 @@ app.post("/getToken", (req, res) => {
 
     const jwt = token.toJwt();
 
-    console.log("✅ Токен создан успешно для:", { room, username });
+    console.log("✅ Токен создан успешно для:", {
+      room,
+      identity,
+      displayName: username || identity,
+    });
 
     res.json({
       token: jwt,
@@ -157,7 +167,9 @@ app.get("/", (req, res) => {
         url: "/getToken",
         body: {
           room: "название-комнаты",
-          username: "имя-пользователя",
+          // --- ИЗМЕНЕНИЕ 4: Обновлено описание API ---
+          identity: "уникальный-идентификатор-пользователя", // <-- ВАЖНО
+          username: "отображаемое-имя-пользователя (опционально)",
           permissions: {
             canPublish: true,
             canSubscribe: true,

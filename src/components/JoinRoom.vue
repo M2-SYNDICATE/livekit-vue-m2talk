@@ -51,12 +51,14 @@ const joinRoom = async () => {
   state.isLoading = true;
 
   try {
+    // ВАЖНО: Больше не передаем уникальный identity вручную,
+    // LiveKitService сам сгенерирует его на основе username + timestamp/random
     const token = await LiveKitService.getAccessToken(
       form.roomName.trim(),
       form.participantName.trim()
+      // Уникальный identity будет сгенерирован внутри getAccessToken
     );
 
-    // Переход к видеозвонку через роутер
     await router.push({
       name: "VideoCall",
       query: {
@@ -65,12 +67,34 @@ const joinRoom = async () => {
         token,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Ошибка подключения:", error);
-    state.error =
-      error instanceof Error
-        ? error.message
-        : "Не удалось подключиться к комнате";
+    let errorMessage = "Не удалось подключиться к комнате";
+    if (error.message) {
+      if (
+        error.message.includes("room not found") ||
+        error.message.includes("not found") ||
+        error.message.includes("does not exist")
+      ) {
+        errorMessage = `Комната "${form.roomName.trim()}" не найдена.`;
+      } else if (
+        error.message.includes("Unauthorized") ||
+        error.message.includes("token") ||
+        error.message.includes("access")
+      ) {
+        errorMessage = "Ошибка аутентификации. Проверьте имя пользователя.";
+      } else if (
+        error.message.includes("max participants") ||
+        error.message.includes("full")
+      ) {
+        errorMessage = `Комната "${form.roomName.trim()}" заполнена.`;
+      } else {
+        errorMessage = error.message;
+      }
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    state.error = errorMessage;
   } finally {
     state.isLoading = false;
   }
@@ -81,7 +105,10 @@ const createRoom = async () => {
   form.roomName = randomRoomName;
 
   if (form.participantName.trim()) {
+    // Для случайных комнат тоже уникальный identity будет сгенерирован
     await joinRoom();
+  } else {
+    state.error = "Пожалуйста, введите ваше имя.";
   }
 };
 

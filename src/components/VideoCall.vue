@@ -121,10 +121,10 @@
           <span>{{ state.error }}</span>
         </div>
         <button
-          @click="connectToRoom()"
+          @click="state.error = ''"
           class="ml-4 px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg text-sm font-medium transition-colors"
         >
-          🔄 Повторить
+          ✅ Понятно
         </button>
       </div>
     </div>
@@ -323,7 +323,7 @@
                 @input="
                   setParticipantVolume(
                     participant.sid,
-                    ($event.target as HTMLInputElement).value
+                    ($event.target as HTMLInputElement).valueAsNumber
                   )
                 "
                 class="flex-1 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer volume-slider"
@@ -771,6 +771,8 @@ const state = reactive({
   connectionQuality: "good" as "excellent" | "good" | "poor" | "lost",
   maxUsers: 10, // Максимальное количество пользователей
   videoVisible: false, // Локальное видео скрыто по умолчанию
+  cameraPermissionDenied: false, // Флаг для отслеживания отказа в доступе к камере
+  microphonePermissionDenied: false, // Флаг для отслеживания отказа в доступе к микрофону
 });
 
 // Состояние устройств
@@ -836,7 +838,7 @@ const getParticipantVideoVisibility = (participantSid: string) => {
 
 // Получение громкости участника
 const getParticipantVolume = (participantSid: string) => {
-  return participantVolumes.value.get(participantSid) || 100;
+  return participantVolumes.value.get(participantSid) ?? 100;
 };
 
 // Установка громкости участника
@@ -844,8 +846,14 @@ const setParticipantVolume = (
   participantSid: string,
   volume: string | number
 ) => {
-  const volumeValue = typeof volume === "string" ? parseInt(volume) : volume;
-  participantVolumes.value.set(participantSid, volumeValue);
+  // Если volume - строка, парсим, иначе используем как есть
+  const volumeValue =
+    typeof volume === "string" ? parseInt(volume, 10) : volume;
+
+  // Убеждаемся, что значение в допустимом диапазоне
+  const clampedVolume = Math.max(0, Math.min(100, volumeValue));
+
+  participantVolumes.value.set(participantSid, clampedVolume);
 
   // Применяем громкость к аудио элементу
   const participantEl = document.querySelector(
@@ -854,12 +862,10 @@ const setParticipantVolume = (
   if (participantEl) {
     const audioEl = participantEl.querySelector("audio") as HTMLAudioElement;
     if (audioEl) {
-      audioEl.volume = volumeValue / 100;
+      audioEl.volume = clampedVolume / 100;
     }
   }
 };
-
-// ... deleted code ... (removed manual video refresh functions)
 
 // Получение аудио уровня участника
 const getAudioLevel = (participantSid: string) => {
@@ -1184,16 +1190,6 @@ const connectToRoom = async () => {
     await room.value.connect(LIVEKIT_CONFIG.WS_URL, props.token);
     console.log("✅ Подключение установлено");
 
-    // Публикация видео (создаем трек, но не показываем сразу)
-    try {
-      localVideoTrack = await createLocalVideoTrack(getVideoResolution());
-      await room.value.localParticipant.publishTrack(localVideoTrack);
-      state.isCameraEnabled = false; // Камера выключена по умолчанию
-    } catch (err) {
-      console.warn("📹 Не удалось создать камеру:", err);
-      state.isCameraEnabled = false;
-    }
-
     // Публикация аудио
     try {
       localAudioTrack = await createLocalAudioTrack({
@@ -1207,8 +1203,27 @@ const connectToRoom = async () => {
       // Запуск мониторинга аудио
       startAudioLevelMonitoring();
     } catch (err) {
-      console.warn("🎤 Не удалось включить микрофон:", err);
+      console.warn("🎤 Не удалось включить микрофон при подключении:", err);
       state.isMicEnabled = false;
+      // --- ДОБАВЛЕНО: Уточнение ошибки доступа при начальном подключении ---
+      if (
+        err.name === "NotAllowedError" ||
+        err.name === "PermissionDeniedError" ||
+        (err.message &&
+          (err.message.includes("denied") ||
+            err.message.includes("Permission") ||
+            err.message.includes("разрешен") ||
+            err.message.includes("Permission denied by system") ||
+            err.message.includes("allow") ||
+            err.message.includes("grant")))
+      ) {
+        // Устанавливаем флаг, так как ошибка произошла
+        state.microphonePermissionDenied = true;
+        // Сообщение может быть чуть другим, если это начальное подключение
+        state.error =
+          "Доступ к микрофону запрещен. Вы можете включить микрофон позже в настройках.";
+        // Не устанавливаем isMicEnabled в true, оставляем false
+      }
     }
   } catch (error: any) {
     console.error("❌ Ошибка подключения:", error);
@@ -1452,23 +1467,85 @@ const toggleCamera = async () => {
   const local = room.value?.localParticipant;
   if (!local) return;
 
-  const videoPubs = [...local.videoTrackPublications.values()];
-  const pub = videoPubs.find((p) => p.track?.kind === "video");
+  // Если камера выключена, нужно включить её (возможно, создать трек)
+  if (!state.isCameraEnabled) {
+    // Проверяем, есть ли уже опубликованный видео трек
+    const videoPubs = [...local.videoTrackPublications.values()];
+    const pub = videoPubs.find((p) => p.track?.kind === "video");
 
-  if (!pub) return;
+    if (pub && localVideoTrack) {
+      // Трек существует, просто размутим его
+      await pub.unmute();
+      // Прикрепляем к элементу, если нужно
+      if (localVideoRef.value) {
+        // Убедимся, что он прикреплен (может быть уже)
+        if (!localVideoTrack.attachedElements.includes(localVideoRef.value)) {
+          localVideoTrack.attach(localVideoRef.value);
+        }
+        state.videoVisible = true;
+      }
+    } else {
+      try {
+        const deviceId = deviceState.selectedCamera || undefined;
+        localVideoTrack = await createLocalVideoTrack({
+          deviceId,
+          ...getVideoResolution(),
+        });
 
-  if (state.isCameraEnabled) {
-    await pub.mute();
-    state.isCameraEnabled = false;
-    state.videoVisible = false;
-  } else {
-    await pub.unmute();
-    state.isCameraEnabled = true;
-    // Автоматически показываем видео при включении камеры
-    if (localVideoRef.value && localVideoTrack) {
-      localVideoTrack.attach(localVideoRef.value);
-      state.videoVisible = true;
+        // --- ИЗМЕНЕНИЕ 1: Сброс флага при успехе ---
+        state.cameraPermissionDenied = false;
+        // ------------------------------------------
+
+        await local.publishTrack(localVideoTrack, {
+          name: "camera",
+        });
+
+        if (localVideoRef.value) {
+          localVideoTrack.attach(localVideoRef.value);
+          state.videoVisible = true;
+        }
+        console.log("✅ Камера включена и опубликована");
+      } catch (err) {
+        console.error("❌ Ошибка включения камеры:", err);
+        // --- ИЗМЕНЕНИЕ 2: Уточненное сообщение об ошибке ---
+        let errorMsg = "Не удалось включить камеру.";
+
+        if (
+          err.name === "NotAllowedError" ||
+          err.name === "PermissionDeniedError" || // Добавлено для полноты
+          (err.message &&
+            (err.message.includes("denied") ||
+              err.message.includes("Permission") ||
+              err.message.includes("разрешен") ||
+              err.message.includes("Permission denied by system") ||
+              err.message.includes("allow") || // Дополнительная проверка
+              err.message.includes("grant"))) // Дополнительная проверка
+        ) {
+          errorMsg =
+            "Доступ к камере запрещен. Пожалуйста, разрешите доступ к камере в настройках браузера и повторите попытку.";
+          // --- ИЗМЕНЕНИЕ 3: Установка флага отказа ---
+          state.cameraPermissionDenied = true;
+          // ------------------------------------------
+        } else {
+          errorMsg += " Проверьте подключение камеры и настройки браузера.";
+        }
+        // --------------------------------------------------
+        state.error = errorMsg;
+        return;
+      }
     }
+    state.isCameraEnabled = true;
+  } else {
+    // Камера включена, нужно выключить её
+    const videoPubs = [...local.videoTrackPublications.values()];
+    const pub = videoPubs.find((p) => p.track?.kind === "video");
+    if (pub) {
+      await pub.mute();
+    }
+    // Отключаем отображение, но не останавливаем трек
+    state.videoVisible = false;
+    state.isCameraEnabled = false;
+    console.log("🔇 Камера выключена");
   }
 };
 
@@ -1476,17 +1553,76 @@ const toggleMicrophone = async () => {
   const local = room.value?.localParticipant;
   if (!local) return;
 
-  const audioPubs = [...local.audioTrackPublications.values()];
-  const pub = audioPubs.find((p) => p.track?.kind === "audio");
+  // Если микрофон выключен, нужно включить его (возможно, создать трек)
+  if (!state.isMicEnabled) {
+    // Проверяем, есть ли уже опубликованный аудио трек
+    const audioPubs = [...local.audioTrackPublications.values()];
+    const pub = audioPubs.find((p) => p.track?.kind === "audio");
 
-  if (!pub) return;
+    if (pub && localAudioTrack) {
+      // Трек существует, просто размутим его
+      await pub.unmute();
+      state.isMicEnabled = true;
+      console.log("✅ Микрофон включен");
+      // Перезапуск мониторинга аудио может потребоваться, если он останавливался
+      startAudioLevelMonitoring();
+    } else {
+      try {
+        const deviceId = deviceState.selectedMicrophone || undefined;
+        localAudioTrack = await createLocalAudioTrack({
+          deviceId,
+          autoGainControl: deviceState.autoGainControl,
+          echoCancellation: deviceState.echoCancellation,
+          noiseSuppression: deviceState.noiseSuppression,
+        });
 
-  if (state.isMicEnabled) {
-    await pub.mute();
-    state.isMicEnabled = false;
+        // --- ИЗМЕНЕНИЕ 1: Сброс флага при успехе ---
+        state.microphonePermissionDenied = false;
+        // ------------------------------------------
+
+        await local.publishTrack(localAudioTrack, {
+          name: "microphone",
+        });
+        state.isMicEnabled = true;
+        startAudioLevelMonitoring();
+        console.log("✅ Микрофон включен и опубликован");
+      } catch (err) {
+        console.error("❌ Ошибка включения микрофона:", err);
+        // --- ИЗМЕНЕНИЕ 2: Уточненное сообщение об ошибке ---
+        let errorMsg = "Не удалось включить микрофон.";
+
+        if (
+          err.name === "NotAllowedError" ||
+          err.name === "PermissionDeniedError" || // Добавлено для полноты
+          (err.message &&
+            (err.message.includes("denied") ||
+              err.message.includes("Permission") ||
+              err.message.includes("разрешен") ||
+              err.message.includes("Permission denied by system") ||
+              err.message.includes("allow") || // Дополнительная проверка
+              err.message.includes("grant"))) // Дополнительная проверка
+        ) {
+          errorMsg =
+            "Доступ к микрофону запрещен. Пожалуйста, разрешите доступ к микрофону в настройках браузера и повторите попытку.";
+          // --- ИЗМЕНЕНИЕ 3: Установка флага отказа ---
+          state.microphonePermissionDenied = true;
+          // ------------------------------------------
+        } else {
+          errorMsg += " Проверьте подключение микрофона и настройки браузера.";
+        }
+        // --------------------------------------------------
+        state.error = errorMsg;
+        return;
+      }
+    }
   } else {
-    await pub.unmute();
-    state.isMicEnabled = true;
+    const audioPubs = [...local.audioTrackPublications.values()];
+    const pub = audioPubs.find((p) => p.track?.kind === "audio");
+    if (pub) {
+      await pub.mute();
+    }
+    state.isMicEnabled = false;
+    console.log("🔇 Микрофон выключен");
   }
 };
 

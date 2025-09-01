@@ -1,8 +1,12 @@
+// src/services/livekitService.ts
 import { LIVEKIT_CONFIG } from "../config/livekit";
 
 // Интерфейс для данных токена
 interface TokenRequest {
   room: string;
+  // Изменено: identity теперь обязательный уникальный идентификатор
+  identity: string;
+  // Добавлено: username как отображаемое имя
   username: string;
   permissions?: {
     canPublish?: boolean;
@@ -35,16 +39,34 @@ export class LiveKitService {
   }
 
   // Получение токена доступа
-  static async getAccessToken(room: string, username: string): Promise<string> {
+  // Изменено: добавлен параметр identity или генерация уникального identity
+  static async getAccessToken(
+    room: string,
+    username: string,
+    identity?: string
+  ): Promise<string> {
     if (!room || !username) {
       throw new Error("Необходимо указать название комнаты и имя пользователя");
     }
 
-    console.log("Запрос токена для:", { room, username });
+    // Генерируем уникальный identity, если он не предоставлен
+    // Это предотвратит "вытеснение" участников с тем же именем
+    const finalIdentity = identity
+      ? identity.trim()
+      : `${username.trim()}_${Date.now()}_${Math.random()
+          .toString(36)
+          .substr(2, 5)}`;
+
+    console.log("Запрос токена для:", {
+      room,
+      username,
+      identity: finalIdentity,
+    });
 
     const requestData: TokenRequest = {
       room: room.trim(),
-      username: username.trim(),
+      identity: finalIdentity, // Передаем уникальный identity
+      username: username.trim(), // Передаем отображаемое имя
       permissions: {
         canPublish: true,
         canSubscribe: true,
