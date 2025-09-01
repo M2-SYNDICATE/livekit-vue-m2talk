@@ -1205,25 +1205,49 @@ const connectToRoom = async () => {
     } catch (err) {
       console.warn("🎤 Не удалось включить микрофон при подключении:", err);
       state.isMicEnabled = false;
-      // --- ДОБАВЛЕНО: Уточнение ошибки доступа при начальном подключении ---
-      if (
-        err.name === "NotAllowedError" ||
-        err.name === "PermissionDeniedError" ||
-        (err.message &&
-          (err.message.includes("denied") ||
-            err.message.includes("Permission") ||
-            err.message.includes("разрешен") ||
-            err.message.includes("Permission denied by system") ||
-            err.message.includes("allow") ||
-            err.message.includes("grant")))
-      ) {
+      let errorMsg = "Не удалось включить микрофон при подключении."; // Сообщение по умолчанию
+      let isPermissionDenied = false; // Флаг для определения ошибки доступа
+
+      // Безопасно проверяем свойства err
+      if (err && typeof err === "object") {
+        // Проверка по имени ошибки
+        if (
+          (err as any).name === "NotAllowedError" ||
+          (err as any).name === "PermissionDeniedError"
+        ) {
+          isPermissionDenied = true;
+        }
+        // Проверка по сообщению ошибки
+        if ((err as any).message && typeof (err as any).message === "string") {
+          const msg = (err as any).message.toLowerCase();
+          if (
+            msg.includes("denied") ||
+            msg.includes("permission") || // Проверяем в нижнем регистре
+            msg.includes("разрешен") || // Оригинальная проверка
+            msg.includes("permission denied by system") || // Оригинальная проверка
+            msg.includes("allow") || // Оригинальная проверка
+            msg.includes("grant") // Оригинальная проверка
+          ) {
+            isPermissionDenied = true;
+          }
+        }
+      }
+
+      if (isPermissionDenied) {
         // Устанавливаем флаг, так как ошибка произошла
         state.microphonePermissionDenied = true;
         // Сообщение может быть чуть другим, если это начальное подключение
-        state.error =
+        errorMsg =
           "Доступ к микрофону запрещен. Вы можете включить микрофон позже в настройках.";
         // Не устанавливаем isMicEnabled в true, оставляем false
+      } else {
+        // Если это не ошибка доступа, добавляем общую информацию
+        errorMsg += " Проверьте подключение микрофона и настройки браузера.";
       }
+
+      // Устанавливаем сообщение об ошибке в состоянии
+      state.error = errorMsg;
+      // --- КОНЕЦ ДОБАВЛЕНИЯ ---
     }
   } catch (error: any) {
     console.error("❌ Ошибка подключения:", error);
@@ -1507,20 +1531,40 @@ const toggleCamera = async () => {
         console.log("✅ Камера включена и опубликована");
       } catch (err) {
         console.error("❌ Ошибка включения камеры:", err);
-        // --- ИЗМЕНЕНИЕ 2: Уточненное сообщение об ошибке ---
-        let errorMsg = "Не удалось включить камеру.";
 
-        if (
-          err.name === "NotAllowedError" ||
-          err.name === "PermissionDeniedError" || // Добавлено для полноты
-          (err.message &&
-            (err.message.includes("denied") ||
-              err.message.includes("Permission") ||
-              err.message.includes("разрешен") ||
-              err.message.includes("Permission denied by system") ||
-              err.message.includes("allow") || // Дополнительная проверка
-              err.message.includes("grant"))) // Дополнительная проверка
-        ) {
+        // --- ИЗМЕНЕНИЕ 2: Уточненное сообщение об ошибке (БЕЗОПАСНО) ---
+        let errorMsg = "Не удалось включить камеру.";
+        let isPermissionDenied = false;
+
+        // Безопасно проверяем свойства err
+        if (err && typeof err === "object") {
+          // Проверка по имени ошибки
+          const errName = (err as any).name;
+          if (
+            errName === "NotAllowedError" ||
+            errName === "PermissionDeniedError"
+          ) {
+            isPermissionDenied = true;
+          }
+
+          // Проверка по сообщению ошибки
+          const errMessage = (err as any).message;
+          if (errMessage && typeof errMessage === "string") {
+            const msgLower = errMessage.toLowerCase();
+            if (
+              msgLower.includes("denied") ||
+              msgLower.includes("permission") ||
+              msgLower.includes("разрешен") ||
+              msgLower.includes("permission denied by system") ||
+              msgLower.includes("allow") ||
+              msgLower.includes("grant")
+            ) {
+              isPermissionDenied = true;
+            }
+          }
+        }
+
+        if (isPermissionDenied) {
           errorMsg =
             "Доступ к камере запрещен. Пожалуйста, разрешите доступ к камере в настройках браузера и повторите попытку.";
           // --- ИЗМЕНЕНИЕ 3: Установка флага отказа ---
@@ -1529,7 +1573,7 @@ const toggleCamera = async () => {
         } else {
           errorMsg += " Проверьте подключение камеры и настройки браузера.";
         }
-        // --------------------------------------------------
+
         state.error = errorMsg;
         return;
       }
@@ -1588,20 +1632,40 @@ const toggleMicrophone = async () => {
         console.log("✅ Микрофон включен и опубликован");
       } catch (err) {
         console.error("❌ Ошибка включения микрофона:", err);
-        // --- ИЗМЕНЕНИЕ 2: Уточненное сообщение об ошибке ---
-        let errorMsg = "Не удалось включить микрофон.";
 
-        if (
-          err.name === "NotAllowedError" ||
-          err.name === "PermissionDeniedError" || // Добавлено для полноты
-          (err.message &&
-            (err.message.includes("denied") ||
-              err.message.includes("Permission") ||
-              err.message.includes("разрешен") ||
-              err.message.includes("Permission denied by system") ||
-              err.message.includes("allow") || // Дополнительная проверка
-              err.message.includes("grant"))) // Дополнительная проверка
-        ) {
+        // --- ИЗМЕНЕНИЕ 2: Уточненное сообщение об ошибке (БЕЗОПАСНО) ---
+        let errorMsg = "Не удалось включить микрофон.";
+        let isPermissionDenied = false;
+
+        // Безопасно проверяем свойства err
+        if (err && typeof err === "object") {
+          // Проверка по имени ошибки
+          const errName = (err as any).name;
+          if (
+            errName === "NotAllowedError" ||
+            errName === "PermissionDeniedError"
+          ) {
+            isPermissionDenied = true;
+          }
+
+          // Проверка по сообщению ошибки
+          const errMessage = (err as any).message;
+          if (errMessage && typeof errMessage === "string") {
+            const msgLower = errMessage.toLowerCase();
+            if (
+              msgLower.includes("denied") ||
+              msgLower.includes("permission") ||
+              msgLower.includes("разрешен") ||
+              msgLower.includes("permission denied by system") ||
+              msgLower.includes("allow") ||
+              msgLower.includes("grant")
+            ) {
+              isPermissionDenied = true;
+            }
+          }
+        }
+
+        if (isPermissionDenied) {
           errorMsg =
             "Доступ к микрофону запрещен. Пожалуйста, разрешите доступ к микрофону в настройках браузера и повторите попытку.";
           // --- ИЗМЕНЕНИЕ 3: Установка флага отказа ---
@@ -1610,7 +1674,7 @@ const toggleMicrophone = async () => {
         } else {
           errorMsg += " Проверьте подключение микрофона и настройки браузера.";
         }
-        // --------------------------------------------------
+
         state.error = errorMsg;
         return;
       }
