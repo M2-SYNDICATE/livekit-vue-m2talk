@@ -33,34 +33,6 @@
         </div>
 
         <div class="flex items-center space-x-4">
-          <!-- Счетчик пользователей с улучшенным функционалом -->
-          <div
-            class="flex items-center space-x-2 text-sm text-gray-300 bg-gray-700/50 px-3 py-2 rounded-lg"
-          >
-            <span class="text-lg">👥</span>
-            <span class="font-medium"
-              >{{ participants.length + 1 }} / {{ state.maxUsers }}</span
-            >
-            <div class="flex space-x-1 ml-2">
-              <button
-                @click="adjustMaxUsers(-1)"
-                :disabled="state.maxUsers <= 2"
-                class="w-6 h-6 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed rounded text-xs flex items-center justify-center transition-colors"
-                title="Уменьшить лимит"
-              >
-                ➖
-              </button>
-              <button
-                @click="adjustMaxUsers(1)"
-                :disabled="state.maxUsers >= 50"
-                class="w-6 h-6 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed rounded text-xs flex items-center justify-center transition-colors"
-                title="Увеличить лимит"
-              >
-                ➕
-              </button>
-            </div>
-          </div>
-
           <!-- Качество соединения -->
           <div
             class="flex items-center space-x-2 text-sm text-gray-300 bg-gray-700/50 px-3 py-2 rounded-lg"
@@ -95,7 +67,7 @@
             class="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-lg"
             title="Настройки устройств"
           >
-            ⚙️
+            <Settings />
           </button>
 
           <!-- Кнопка приглашения -->
@@ -103,7 +75,7 @@
             @click="showInviteModal"
             class="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           >
-            <span class="text-lg">➕</span>
+            <plus />
             <span>Пригласить</span>
           </button>
         </div>
@@ -117,7 +89,7 @@
     >
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-2">
-          <span class="text-lg">⚠️</span>
+          <message-circle-warning />
           <span>{{ state.error }}</span>
         </div>
         <button
@@ -182,10 +154,11 @@
             <!-- Индикатор микрофона -->
             <div class="relative">
               <div
-                class="w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-colors text-lg"
+                class="w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-colors"
                 :class="state.isMicEnabled ? 'bg-green-500' : 'bg-red-500'"
               >
-                {{ state.isMicEnabled ? "🎤" : "🔇" }}
+                <Mic v-if="state.isMicEnabled" class="w-4 h-4 text-white" />
+                <MicOff v-else class="w-4 h-4 text-white" />
               </div>
               <!-- Индикатор уровня звука -->
               <div
@@ -200,7 +173,7 @@
               v-if="!state.isCameraEnabled"
               class="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg text-lg"
             >
-              📹
+              <camera />
             </div>
           </div>
 
@@ -227,8 +200,6 @@
               ></div>
             </div>
           </div>
-
-          <!-- ... deleted code ... (removed manual video refresh button for local user) -->
         </div>
 
         <!-- Удалённые участники -->
@@ -275,12 +246,16 @@
               <!-- Индикатор микрофона -->
               <div class="relative">
                 <div
-                  class="w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-colors text-lg"
+                  class="w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-colors"
                   :class="
                     hasAudioTrack(participant) ? 'bg-green-500' : 'bg-red-500'
                   "
                 >
-                  {{ hasAudioTrack(participant) ? "🎤" : "🔇" }}
+                  <Mic
+                    v-if="hasAudioTrack(participant)"
+                    class="w-4 h-4 text-white"
+                  />
+                  <MicOff v-else class="w-4 h-4 text-white" />
                 </div>
                 <!-- Индикатор уровня звука -->
                 <div
@@ -298,7 +273,7 @@
                 v-if="!hasVideoTrack(participant)"
                 class="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg text-lg"
               >
-                📹
+                <Camera />
               </div>
             </div>
 
@@ -314,7 +289,7 @@
               v-if="hasAudioTrack(participant)"
               class="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm rounded-lg p-2 flex items-center space-x-2 min-w-[120px]"
             >
-              <span class="text-xs text-white">🔊</span>
+              <volume2 />
               <input
                 type="range"
                 min="0"
@@ -344,7 +319,7 @@
             <div
               class="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl"
             >
-              👥
+              <users />
             </div>
             <p class="text-lg font-semibold text-gray-300 mb-2">
               Ожидание участников...
@@ -356,25 +331,9 @@
               @click="showInviteModal"
               class="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg"
             >
-              <span class="text-lg">➕</span>
+              <plus />
               <span>Пригласить участников</span>
             </button>
-          </div>
-        </div>
-
-        <!-- Предупреждение о превышении лимита -->
-        <div
-          v-if="participants.length + 1 >= state.maxUsers"
-          class="col-span-full bg-yellow-600/20 border border-yellow-500/50 rounded-xl p-4 text-center"
-        >
-          <div
-            class="flex items-center justify-center space-x-2 text-yellow-300"
-          >
-            <span class="text-lg">⚠️</span>
-            <span class="text-sm font-medium">
-              Достигнут лимит участников ({{ state.maxUsers }}). Новые
-              пользователи не смогут присоединиться.
-            </span>
           </div>
         </div>
       </div>
@@ -385,11 +344,24 @@
       class="fixed bottom-0 left-0 right-0 bg-gray-800/95 backdrop-blur-sm border-t border-gray-700/50 px-6 py-6"
     >
       <div class="flex items-center justify-center space-x-6">
+        <!-- ДОБАВЛЕНО: Кнопка участников -->
+        <button
+          @click="toggleParticipantsPanel"
+          class="group p-4 rounded-full transition-all duration-200 transform hover:scale-105"
+          :class="
+            state.showParticipantsPanel
+              ? 'bg-blue-600'
+              : 'bg-gray-700 hover:bg-gray-600'
+          "
+          title="Участники"
+        >
+          <Users class="w-6 h-6 text-white" />
+        </button>
         <!-- Микрофон -->
         <div class="relative">
           <button
             @click="toggleMicrophone"
-            class="group p-4 rounded-full transition-all duration-200 transform hover:scale-105 text-2xl"
+            class="group p-4 rounded-full transition-all duration-200 transform hover:scale-105"
             :class="
               state.isMicEnabled
                 ? 'bg-gray-700 hover:bg-gray-600'
@@ -399,7 +371,8 @@
               state.isMicEnabled ? 'Выключить микрофон' : 'Включить микрофон'
             "
           >
-            {{ state.isMicEnabled ? "🎤" : "🔇" }}
+            <Mic v-if="state.isMicEnabled" class="w-6 h-6 text-white" />
+            <MicOff v-else class="w-6 h-6 text-white" />
           </button>
           <!-- Индикатор уровня звука -->
           <div
@@ -412,7 +385,7 @@
         <!-- Камера -->
         <button
           @click="toggleCamera"
-          class="group p-4 rounded-full transition-all duration-200 transform hover:scale-105 text-2xl"
+          class="group p-4 rounded-full transition-all duration-200 transform hover:scale-105"
           :class="
             state.isCameraEnabled
               ? 'bg-gray-700 hover:bg-gray-600'
@@ -422,7 +395,8 @@
             state.isCameraEnabled ? 'Выключить камеру' : 'Включить камеру'
           "
         >
-          {{ state.isCameraEnabled ? "📹" : "📷" }}
+          <Camera v-if="state.isCameraEnabled" class="w-6 h-6 text-white" />
+          <CameraOff v-else class="w-6 h-6 text-white" />
         </button>
 
         <!-- Настройки устройств -->
@@ -431,10 +405,8 @@
           class="group p-4 rounded-full bg-gray-700 hover:bg-gray-600 transition-all duration-200 transform hover:scale-105 text-2xl"
           title="Настройки устройств"
         >
-          ⚙️
+          <settings />
         </button>
-
-        <!-- ... deleted code ... (removed manual video refresh button from control panel) -->
 
         <!-- Выход -->
         <button
@@ -442,19 +414,19 @@
           class="p-4 rounded-full bg-red-600 hover:bg-red-700 text-white transition-all duration-200 transform hover:scale-105 text-2xl"
           title="Покинуть комнату"
         >
-          🚪
+          <log-out />
         </button>
       </div>
 
       <!-- Статистика -->
       <div class="mt-4 text-center">
         <p class="text-sm text-gray-400">
-          Участников: {{ participants.length + 1 }} / {{ state.maxUsers }}
+          Участников: {{ participants.length + 1 }}
           <span
             v-if="state.speakingParticipants.size > 0 || state.isLocalSpeaking"
-            class="ml-2 text-green-400"
+            class="ml-2 text-green-400 inline-flex items-center"
           >
-            • 🗣️
+            <Megaphone class="w-4 h-4 mr-1" />
             {{
               state.speakingParticipants.size + (state.isLocalSpeaking ? 1 : 0)
             }}
@@ -464,7 +436,135 @@
       </div>
     </div>
 
-    <!-- ... existing code ... (модальные окна остаются без изменений) -->
+    <!--Боковая панель участников-->
+    <div
+      v-if="state.showParticipantsPanel"
+      class="fixed top-0 left-0 h-full w-80 bg-gray-800/95 backdrop-blur-sm border-r border-gray-700/50 z-40 transform transition-transform duration-300 ease-in-out"
+      :class="
+        state.showParticipantsPanel ? 'translate-x-0' : '-translate-x-full'
+      "
+    >
+      <div
+        class="p-4 border-b border-gray-700/50 flex items-center justify-between"
+      >
+        <h3 class="text-lg font-semibold text-white">Участники</h3>
+        <button
+          @click="toggleParticipantsPanel"
+          class="text-gray-400 hover:text-white transition-colors"
+        >
+          <X class="w-5 h-5" />
+        </button>
+      </div>
+      <div class="overflow-y-auto h-[calc(100vh-80px)]">
+        <!-- Локальный участник -->
+        <div class="p-4 border-b border-gray-700/30">
+          <div class="flex items-center space-x-3">
+            <div class="relative">
+              <div
+                class="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center"
+              >
+                <span class="text-white text-sm font-bold">{{
+                  getInitials(props.participantName)
+                }}</span>
+              </div>
+              <div
+                class="absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-gray-800"
+                :class="{
+                  'bg-green-400': state.connectionQuality === 'excellent',
+                  'bg-yellow-400': state.connectionQuality === 'good',
+                  'bg-orange-400': state.connectionQuality === 'poor',
+                  'bg-red-400': state.connectionQuality === 'lost',
+                }"
+              ></div>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-white text-sm font-medium truncate">
+                Вы ({{ props.participantName }})
+              </p>
+              <p class="text-xs text-gray-400 capitalize">
+                {{
+                  state.connectionQuality === "excellent"
+                    ? "Отлично"
+                    : state.connectionQuality === "good"
+                    ? "Хорошо"
+                    : state.connectionQuality === "poor"
+                    ? "Плохо"
+                    : "Потеряно"
+                }}
+              </p>
+            </div>
+            <div class="flex items-center">
+              <div
+                class="w-6 h-6 rounded-full flex items-center justify-center"
+                :class="state.isMicEnabled ? 'bg-green-500' : 'bg-red-500'"
+              >
+                <Mic v-if="state.isMicEnabled" class="w-3 h-3 text-white" />
+                <MicOff v-else class="w-3 h-3 text-white" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Удаленные участники -->
+        <div
+          v-for="participant in participants"
+          :key="participant.sid"
+          class="p-4 border-b border-gray-700/30"
+        >
+          <div class="flex items-center space-x-3">
+            <div class="relative">
+              <div
+                class="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center"
+              >
+                <span class="text-white text-sm font-bold">{{
+                  getInitials(participant.name || participant.identity)
+                }}</span>
+              </div>
+              <!-- Здесь можно добавить индикатор качества для удаленных участников, если доступен -->
+              <!-- Пока показываем общий индикатор активности -->
+              <div
+                v-if="state.speakingParticipants.has(participant.sid)"
+                class="absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-gray-800 bg-green-400 animate-pulse"
+              ></div>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-white text-sm font-medium truncate">
+                {{ participant.name || participant.identity }}
+              </p>
+              <p class="text-xs text-gray-400">
+                {{ hasAudioTrack(participant) ? "Аудио" : "Нет аудио" }}
+                {{ hasVideoTrack(participant) ? ", Видео" : ", Нет видео" }}
+              </p>
+            </div>
+            <div class="flex items-center space-x-1">
+              <div
+                class="w-6 h-6 rounded-full flex items-center justify-center"
+                :class="
+                  hasAudioTrack(participant) ? 'bg-green-500' : 'bg-red-500'
+                "
+              >
+                <Mic
+                  v-if="hasAudioTrack(participant)"
+                  class="w-3 h-3 text-white"
+                />
+                <MicOff v-else class="w-3 h-3 text-white" />
+              </div>
+              <div
+                v-if="!hasVideoTrack(participant)"
+                class="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center"
+              >
+                <CameraOff class="w-3 h-3 text-white" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Нет участников -->
+        <div v-if="participants.length === 0" class="p-4 text-center">
+          <p class="text-gray-400 text-sm">В комнате нет других участников</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Модальное окно приглашения -->
     <div
       v-if="state.showInviteModal"
@@ -499,10 +599,12 @@
           />
           <button
             @click="copyInviteLink"
-            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center"
             :class="{ 'bg-green-600 hover:bg-green-700': state.linkCopied }"
           >
-            {{ state.linkCopied ? "📋 Скопировано!" : "📋 Копировать" }}
+            <ClipboardCheck v-if="state.linkCopied" class="w-4 h-4 mr-2" />
+            <Clipboard v-else class="w-4 h-4 mr-2" />
+            {{ state.linkCopied ? "Скопировано!" : "Копировать" }}
           </button>
         </div>
 
@@ -536,7 +638,7 @@
         <!-- Камеры -->
         <div class="mb-6">
           <label class="block text-sm font-medium text-gray-300 mb-2">
-            <span class="text-lg mr-2">📹</span>
+            <Camera class="w-5 h-5 mr-2 inline-block" />
             Камера
           </label>
           <select
@@ -557,7 +659,7 @@
         <!-- Микрофоны -->
         <div class="mb-6">
           <label class="block text-sm font-medium text-gray-300 mb-2">
-            <span class="text-lg mr-2">🎤</span>
+            <Mic class="w-5 h-5 mr-2 inline-block" />
             Микрофон
           </label>
           <select
@@ -594,7 +696,7 @@
         <!-- Динамики -->
         <div class="mb-6">
           <label class="block text-sm font-medium text-gray-300 mb-2">
-            <span class="text-lg mr-2">🔊</span>
+            <Volume2 class="w-5 h-5 mr-2 inline-block" />
             Динамики
           </label>
           <select
@@ -614,19 +716,22 @@
           <!-- Тест динамиков -->
           <button
             @click="testSpeakers"
-            class="mt-3 w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+            class="mt-3 w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center"
             :disabled="deviceState.testingAudio"
           >
-            {{
-              deviceState.testingAudio ? "🔊 Тестирование..." : "🔊 Тест звука"
-            }}
+            <Volume2 v-if="!deviceState.testingAudio" class="w-4 h-4 mr-2" />
+            <Loader
+              v-if="deviceState.testingAudio"
+              class="w-4 h-4 mr-2 animate-spin"
+            />
+            {{ deviceState.testingAudio ? "Тестирование..." : "Тест звука" }}
           </button>
         </div>
 
         <!-- Настройки качества -->
         <div class="mb-6">
           <label class="block text-sm font-medium text-gray-300 mb-2">
-            <span class="text-lg mr-2">📊</span>
+            <Columns3Cog class="w-5 h-5 mr-2 inline-block" />
             Качество видео
           </label>
           <select
@@ -643,9 +748,10 @@
         <!-- Дополнительные настройки -->
         <div class="space-y-4">
           <div class="flex items-center justify-between">
-            <label class="text-sm font-medium text-gray-300"
-              >🔇 Подавление шума</label
-            >
+            <label class="text-sm font-medium text-gray-300 flex items-center">
+              <Ear class="w-4 h-4 mr-2" />
+              Подавление шума
+            </label>
             <button
               @click="
                 deviceState.noiseSuppression = !deviceState.noiseSuppression;
@@ -668,9 +774,10 @@
           </div>
 
           <div class="flex items-center justify-between">
-            <label class="text-sm font-medium text-gray-300"
-              >🔄 Подавление эха</label
-            >
+            <label class="text-sm font-medium text-gray-300 flex items-center">
+              <RefreshCw class="w-4 h-4 mr-2" />
+              Подавление эха
+            </label>
             <button
               @click="
                 deviceState.echoCancellation = !deviceState.echoCancellation;
@@ -693,9 +800,10 @@
           </div>
 
           <div class="flex items-center justify-between">
-            <label class="text-sm font-medium text-gray-300"
-              >🎚️ Автоматическая регулировка громкости</label
-            >
+            <label class="text-sm font-medium text-gray-300 flex items-center">
+              <AudioWaveform class="w-4 h-4 mr-2" />
+              Автоматическая регулировка громкости
+            </label>
             <button
               @click="
                 deviceState.autoGainControl = !deviceState.autoGainControl;
@@ -739,6 +847,31 @@ import {
   LocalVideoTrack,
   LocalAudioTrack,
 } from "livekit-client";
+import {
+  Mic,
+  MicOff,
+  Camera,
+  CameraOff,
+  LogOut,
+  Settings,
+  Plus,
+  Clipboard,
+  ClipboardCheck,
+  Users,
+  Megaphone,
+  SlidersVertical,
+  Volume2,
+  VolumeOff,
+  RefreshCw,
+  AudioWaveform,
+  X,
+  SettingsIcon,
+  MessageCircleWarning,
+  CircleCheck,
+  Loader,
+  Columns3Cog,
+  Ear,
+} from "lucide-vue-next";
 import { LIVEKIT_CONFIG } from "../config/livekit";
 
 interface Props {
@@ -769,10 +902,10 @@ const state = reactive({
   inviteLink: "" as string,
   linkCopied: false,
   connectionQuality: "good" as "excellent" | "good" | "poor" | "lost",
-  maxUsers: 10, // Максимальное количество пользователей
   videoVisible: false, // Локальное видео скрыто по умолчанию
   cameraPermissionDenied: false, // Флаг для отслеживания отказа в доступе к камере
   microphonePermissionDenied: false, // Флаг для отслеживания отказа в доступе к микрофону
+  showParticipantsPanel: false,
 });
 
 // Состояние устройств
@@ -817,19 +950,15 @@ interface MinimalParticipant {
   >;
 }
 
+const toggleParticipantsPanel = () => {
+  state.showParticipantsPanel = !state.showParticipantsPanel;
+};
+
 const participants = ref<MinimalParticipant[]>([]);
 
 // Локальные треки
 let localVideoTrack: LocalVideoTrack | undefined;
 let localAudioTrack: LocalAudioTrack | undefined;
-
-// Регулировка максимального количества пользователей
-const adjustMaxUsers = (delta: number) => {
-  const newValue = state.maxUsers + delta;
-  if (newValue >= 2 && newValue <= 50) {
-    state.maxUsers = newValue;
-  }
-};
 
 // Получение видимости видео участника
 const getParticipantVideoVisibility = (participantSid: string) => {
@@ -1813,5 +1942,23 @@ onUnmounted(() => {
 
 .volume-slider::-moz-range-thumb:hover {
   background: #2563eb;
+}
+
+.overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: rgba(75, 85, 99, 0.3);
+  border-radius: 3px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.7);
 }
 </style>
