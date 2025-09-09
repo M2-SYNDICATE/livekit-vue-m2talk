@@ -42,7 +42,7 @@ const goToRoom = (roomId: string) => {
           </svg>
         </div>
         <h1 class="text-3xl font-bold text-gray-900 mb-2">M2 Live</h1>
-        <p class="text-gray-600">Видеозвонки для AI <HR></HR></p>
+        <p class="text-gray-600">Видеозвонки для AI HR</p>
       </div>
 
       <!-- Основные действия -->
