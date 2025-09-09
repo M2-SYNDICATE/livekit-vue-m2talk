@@ -1,34 +1,94 @@
-# vue-tolk
+# 📹 m2-talk  
 
-This template should help get you started developing with Vue 3 in Vite.
+Видеоконференции для AI HR звонков на базе **LiveKit**  
 
-## Recommended IDE Setup
+🔗 Бэкенд: [m2-talk-backend](https://github.com/your-org/m2-talk-backend)  
+Полная инстукрция будет на бэке
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+---
 
-## Type Support for `.vue` Imports in TS
+## 🚀 Быстрый старт
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+### 1. Настройка проекта
 
-## Customize configuration
+Перейдите в файл **`src/config/livekit.ts`** и замените содержимое на следующее:
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+```ts
+// Конфигурация LiveKit
+export const LIVEKIT_CONFIG = {
+  // URL вашего сервера токенов
+  TOKEN_SERVER_URL: "http://",
 
-## Project Setup
+  // API URL для запросов
+  API_URL: "http://",
 
-```sh
-npm install
+  // WebSocket URL LiveKit сервера
+  WS_URL: "ws://",
+};
+
+// Настройки для продакшена
+if (isProduction) {
+  LIVEKIT_CONFIG.TOKEN_SERVER_URL = "http://";
+  LIVEKIT_CONFIG.API_URL = "http://";
+  LIVEKIT_CONFIG.WS_URL = "wss://";
+}
 ```
 
-### Compile and Hot-Reload for Development
+---
 
-```sh
+### 2. Настройка Token Server
+
+Перейдите в файл **`token-server/server.js`** и замените API-ключи на свои из `livekit.yaml`:
+
+```js
+const API_KEY = "";    // 👈 Ваш API ключ из livekit.yaml
+const API_SECRET = ""; // 👈 Ваш API секрет из livekit.yaml
+```
+
+---
+
+### 3. Запуск проекта
+
+#### 🔹 Запуск фронтенда
+```bash
+npm install
 npm run dev
 ```
 
-### Type-Check, Compile and Minify for Production
-
-```sh
-npm run build
+#### 🔹 Запуск Token Server
+```bash
+cd token-server
+node server.js
 ```
-"# m2-video-conference-talk" 
+
+#### 🔹 Запуск LiveKit сервера
+```bash
+./livekit-server --config livekit.yaml
+```
+
+---
+
+## 📂 Структура проекта
+```
+m2-talk/
+│── src/                # Исходный код фронтенда
+│   └── config/
+│       └── livekit.ts  # Конфигурация LiveKit
+│
+│── token-server/       # Сервер для генерации токенов
+│   └── server.js
+│
+│── package.json
+│── README.md
+```
+
+---
+
+## 🌐 Ссылки
+
+- [LiveKit Docs](https://docs.livekit.io/)
+- [LiveKit GitHub](https://github.com/livekit)
+
+---
+
+💡 Теперь вы можете подключаться к видеоконференциям и использовать m2-talk для AI HR звонков!
