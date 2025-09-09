@@ -31,7 +31,7 @@ export const isProduction = import.meta.env.PROD;
 
 // Настройки для продакшена
 if (isProduction) {
-  LIVEKIT_CONFIG.TOKEN_SERVER_URL = "https://your-token-server.com";
-  LIVEKIT_CONFIG.API_URL = "https://your-token-server.com";
-  LIVEKIT_CONFIG.WS_URL = "wss://your-livekit-server.com";
+  LIVEKIT_CONFIG.TOKEN_SERVER_URL = "http://localhost:3001";
+  LIVEKIT_CONFIG.API_URL = "http://localhost:3001";
+  LIVEKIT_CONFIG.WS_URL = "wss://m2-live.ru";
 }

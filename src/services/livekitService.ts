@@ -27,7 +27,7 @@ export class LiveKitService {
   // Проверка здоровья сервера
   static async checkServerHealth(): Promise<boolean> {
     try {
-      const response = await fetch(`${LIVEKIT_CONFIG.API_URL}/health`, {
+      const response = await fetch(`/api/health`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });
@@ -76,7 +76,7 @@ export class LiveKitService {
     };
 
     try {
-      const response = await fetch(`${LIVEKIT_CONFIG.API_URL}/getToken`, {
+      const response = await fetch(`/api/getToken`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

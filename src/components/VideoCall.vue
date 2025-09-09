@@ -228,9 +228,24 @@
             <!-- Скрытый аудио элемент -->
             <audio autoplay></audio>
 
-            <!-- Аватар при отключенном видео -->
+            <!-- Бот Настя HR (bot) - Изображение -->
             <div
               v-if="
+                participant.name === 'Настя HR (bot)' ||
+                participant.identity === 'Настя HR (bot)'
+              "
+              class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700"
+            >
+              <img
+                :src="'/nastya-hr-avatar.webp'"
+                alt="Бот Настя HR"
+                class="w-full h-full object-cover rounded-lg"
+              />
+            </div>
+
+            <!-- Остальные аватары (для обычных участников) -->
+            <div
+              v-else-if="
                 !hasVideoTrack(participant) ||
                 !getParticipantVideoVisibility(participant.sid)
               "
@@ -1478,14 +1493,57 @@ const handleTrackSubscribed = async (
     "от",
     participant.identity
   );
-
   await nextTick();
-
   const participantEl = document.querySelector(
     `#participant-${participant.sid}`
   );
   if (!participantEl) return;
 
+  if (
+    participant.name === "Настя HR (bot)" ||
+    participant.identity === "Настя HR (bot)"
+  ) {
+    const videoEl = participantEl.querySelector(
+      'video[data-track="video"]'
+    ) as HTMLVideoElement;
+
+    // Если видео элемент существует, скрываем его и показываем изображение
+    if (videoEl) {
+      videoEl.style.display = "none";
+    }
+
+    // Находим или создаем контейнер для изображения
+    let imageContainer = participantEl.querySelector(".bot-image-container");
+    if (!imageContainer) {
+      imageContainer = document.createElement("div");
+      imageContainer.className =
+        "bot-image-container absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700";
+      participantEl.appendChild(imageContainer);
+    }
+
+    // Устанавливаем изображение
+    const img = imageContainer.querySelector("img") as HTMLImageElement;
+    if (img) {
+      img.src = "/bot-avatar.png"; // Путь к изображению в public
+    } else {
+      const newImg = document.createElement("img");
+      newImg.src = "/bot-avatar.png";
+      newImg.alt = "Бот Настя HR";
+      newImg.className = "w-full h-full object-cover rounded-lg";
+      imageContainer.appendChild(newImg);
+    }
+
+    // Закрепляем трек (если нужно)
+    try {
+      track.attach(videoEl); // Это может быть не обязательно
+    } catch (e) {
+      console.warn("Ошибка при attach:", e);
+    }
+
+    return; // Прерываем выполнение, так как мы уже обработали бота
+  }
+
+  // Остальная логика для обычных участников (оставляем без изменений)
   if (track.kind === "video") {
     const videoEl = participantEl.querySelector(
       'video[data-track="video"]'
@@ -1505,16 +1563,13 @@ const handleTrackSubscribed = async (
     if (audioEl) {
       try {
         track.attach(audioEl);
-
         // Установка динамика
         if (deviceState.selectedSpeaker && "setSinkId" in audioEl) {
           await (audioEl as any).setSinkId(deviceState.selectedSpeaker);
         }
-
         // Применяем сохраненную громкость
         const volume = getParticipantVolume(participant.sid);
         audioEl.volume = volume / 100;
-
         console.log("🎵 Прикрепили аудио трек");
       } catch (e) {
         console.warn("Ошибка при attach аудио:", e);
