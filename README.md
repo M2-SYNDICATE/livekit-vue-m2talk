@@ -2,8 +2,7 @@
 
 Видеоконференции для AI HR звонков на базе **LiveKit**  
 
-🔗 Бэкенд: [m2-talk-backend](https://github.com/your-org/m2-talk-backend)  
-Полная инстукрция будет на бэке
+🔗 Полная интсрукция: [Инструкция](https://github.com/M2-SYNDICATE/back-m2-moder-panel/blob/unstable/README.md)
 
 ---
 
