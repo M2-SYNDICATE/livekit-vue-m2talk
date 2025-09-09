@@ -52,7 +52,7 @@ const API_SECRET = ""; // 👈 Ваш API секрет из livekit.yaml
 #### 🔹 Запуск фронтенда
 ```bash
 npm install
-npm run dev
+npm run build
 ```
 
 #### 🔹 Запуск Token Server
