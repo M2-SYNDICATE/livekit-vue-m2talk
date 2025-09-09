@@ -231,12 +231,12 @@
             <!-- Бот Настя HR (bot) - Изображение -->
             <div
               v-if="isBot(participant)"
-              class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700"
+              class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700 p-4"
             >
               <img
                 src="/nastya-hr-avatar.png"
                 :alt="participant.name || participant.identity"
-                class="w-full h-full object-cover rounded-lg"
+                class="max-w-full max-h-full object-contain rounded-lg shadow-lg"
                 @error="console.warn('Ошибка загрузки аватара бота:', $event)"
               />
             </div>
